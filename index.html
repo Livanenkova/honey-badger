@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Honey Badger</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css"/>
+
+  <style>
+    .app{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px;}
+    .panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;position:sticky;top:100px;height:calc(100vh - 120px);overflow:auto;}
+    .field{margin-bottom:10px;}
+    .field label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px;}
+    .field input,.field textarea,.field select{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:10px;font:inherit;}
+    .field textarea{min-height:70px;resize:vertical;}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .mini-btn{padding:7px 10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;cursor:pointer;font-size:13px;}
+    .expItem{border:1px solid #e5e7eb;border-radius:12px;padding:10px;margin-bottom:10px;background:#fafafa;}
+    .expActions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+    .toolbar{padding:10px 16px;border-bottom:1px solid #e5e7eb;background:#fff;position:sticky;top:0;z-index:10;}
+    .toolbar__row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
+    .toolbar__import{display:flex;align-items:flex-start;gap:8px;margin-top:10px;flex-wrap:wrap;}
+    .toolbar__import-label{font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap;padding-top:8px;}
+    .toolbar__import-area{flex:1;min-width:200px;height:56px;padding:8px 10px;border:1px solid #d1d5db;border-radius:10px;font:12px/1.4 monospace;resize:vertical;}
+    .toolbar button{margin-right:8px;padding:8px 12px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;}
+    .hint{font-size:12px;color:#6b7280;}
+
+    @media print{
+      .panel,.toolbar{display:none!important;}
+      .app{display:block;padding:0;}
+    }
+  </style>
+</head>
+<body>
+
+<header class="toolbar">
+  <div class="toolbar__row">
+    <span class="toolbar__title">Honey Badger</span>
+    <button id="renderBtn">Generate</button>
+    <button id="printBtn">Export PDF</button>
+    <button id="downloadJsonBtn">Download JSON</button>
+    <button id="uploadJsonBtn">Upload JSON</button>
+    <button id="resetBtn">Reset</button>
+    <span class="hint">PDF без колонтитулов</span>
+    <input type="file" id="jsonFileInput" accept=".json" style="display:none"/>
+  </div>
+  <div class="toolbar__import">
+    <label class="toolbar__import-label">Import JSON</label>
+    <textarea id="fJsonPaste" class="toolbar__import-area" placeholder="Paste full CV JSON here..."></textarea>
+    <button id="applyJsonBtn" class="mini-btn" type="button">Apply JSON</button>
+  </div>
+</header>
+
+<div class="app">
+
+  <aside class="panel">
+
+    <div class="field">
+      <label>Name</label>
+      <input id="fName"/>
+    </div>
+
+    <div class="field">
+      <label>Headline</label>
+      <input id="fHeadline"/>
+    </div>
+
+    <div class="field">
+      <label>Contacts (one per line)</label>
+      <textarea id="fContacts"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Profile</label>
+      <textarea id="fProfile"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Key Impact (one per line)</label>
+      <textarea id="fImpact"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Core Competencies (one per line)</label>
+      <textarea id="fChips"></textarea>
+    </div>
+
+    <hr/>
+
+    <strong>Experience</strong>
+    <button id="addExpBtn" class="mini-btn">+ Add</button>
+    <div id="expList"></div>
+
+    <hr/>
+
+    <div class="field">
+      <label>Education (one per line)</label>
+      <textarea id="fEdu"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Projects (one per line)</label>
+      <textarea id="fProjects"></textarea>
+    </div>
+
+  </aside>
+
+  <main id="cvRoot" class="doc"></main>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

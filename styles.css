@@ -1,0 +1,394 @@
+:root{
+  --page-w: 210mm;
+  --page-h: 297mm;
+
+  --pad-x: 18mm;
+  --pad-y: 18mm;
+  --page-margin-bottom: 18mm;
+  --page-margin-top-continued: 10mm;
+
+  --blue: #2B5FB8;
+  --text: #111827;
+  --muted: #6B7280;
+
+  --line: #E5E7EB;
+  --line-strong: #D1D5DB;
+
+  --card-bg: #F6F7FB;
+  --card-stroke: #E5E7EB;
+
+  --chip-bg: #EEF1F5;
+  --chip-stroke: #D7DDE6;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: #f3f4f6;
+}
+
+/* ================= TOOLBAR (optional, if toolbar styles live here) ================= */
+
+.toolbar{
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px;
+  z-index: 10;
+}
+
+.toolbar__row{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar__title{
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
+  margin-right: 8px;
+}
+
+button{
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.hint{
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ================= DOCUMENT ================= */
+
+.doc{
+  display: grid;
+  gap: 0;
+  padding: 20px 0;
+}
+
+.page{
+  width: var(--page-w);
+  min-height: var(--page-h);
+  margin: 0 auto;
+  background: #fff;
+  padding: var(--pad-y) var(--pad-x);
+  padding-bottom: var(--page-margin-bottom);
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+.page{
+  max-height: var(--page-h);
+  overflow: hidden;
+}
+/* Только при двух страницах вторая — длинная (без ограничения высоты) */
+.doc.doc--two-pages .page:last-child{
+  max-height: none;
+  overflow: visible;
+}
+
+/* Разрыв между страницами в превью — явный блок между страницами */
+.page-break-preview{
+  width: var(--page-w);
+  margin: 28px auto 0;
+  padding: 20px 0;
+  background: #e5e7eb;
+  border-top: 3px solid var(--line-strong);
+  border-bottom: 3px solid var(--line-strong);
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.page-break-preview span{ font-weight: 700; color: var(--text); }
+.page-break-preview + .page{
+  margin-top: 0;
+  padding-top: var(--page-margin-top-continued);
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+.page--empty{ min-height: 120px; }
+.doc.pdf-export .page-break-preview,
+.doc.pdf-export .page--empty{ display: none !important; }
+
+/* Export PDF: фиксированная ширина и обрезка, чтобы верстка не съезжала */
+.doc.pdf-export{
+  width: 794px;
+  max-width: 794px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.doc.pdf-export .page{
+  margin: 0;
+  width: 794px;
+  max-width: 794px;
+  min-width: 794px;
+  height: 1122px;
+  max-height: 1122px;
+  min-height: 1122px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.doc.pdf-export .page-break-preview + .page{
+  padding-top: var(--page-margin-top-continued);
+}
+
+/* ================= HEADER ================= */
+
+.header{
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.name{
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.headline{
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.header__right{
+  text-align: right;
+  min-width: 230px;
+}
+
+.contact{
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* ================= SECTIONS ================= */
+
+.section--divider {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 18px;
+  margin-top: 18px;
+}
+
+.section{
+  margin-top: 18px;
+}
+
+.section__head{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.section__title{
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  white-space: nowrap;
+}
+
+.section__line{
+  height: 2px;
+  flex: 1;
+  background: var(--line-strong);
+}
+
+/* ================= BODY & LIST ================= */
+
+.body{
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.52;
+  color: var(--text);
+}
+
+.body--tight{
+  margin-top: 4px;
+  margin-bottom: 6px;
+  color: var(--muted);
+}
+
+.list{
+  margin: 8px 0 0 18px;
+  padding: 0;
+  font-size: 13.5px;
+  line-height: 1.52;
+}
+
+.list li{
+  margin: 0 0 6px 0;
+}
+
+.list li::marker{
+  color: #9CA3AF;
+}
+
+/* ================= CARD ================= */
+
+.card{
+  background: var(--card-bg);
+  border: 1px solid var(--card-stroke);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+/* ================= CHIPS ================= */
+
+.chips{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip{
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-stroke);
+  border-radius: 12px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ================= EXPERIENCE ================= */
+
+.exp{
+  margin-top: 12px;
+}
+
+.exp__head{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: baseline;
+}
+
+.exp__role{
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.exp__meta{
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Divider between experience blocks (more reliable than adjacency in print fragmentation) */
+.exp--divider,
+.exp + .exp{
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+/* ================= PRINT ================= */
+
+@media print{
+
+  body{ background: #fff; }
+
+  .no-print{ display: none !important; }
+
+  .doc{
+    gap: 0;
+    padding: 0;
+  }
+
+  .page{
+    box-shadow: none;
+    margin: 0;
+    width: auto;
+    min-height: auto;
+    /* Use @page margins for consistent top padding on every printed page */
+    padding: 0;
+
+    /* no forced breaks by default */
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  /* If a single .page gets split by the browser, @page margin still applies */
+
+  /* break only if class is present */
+  .page.page--break{
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .page:last-child{
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  /* ✅ Prevent splitting an experience block across pages (page 1) */
+  .exp{
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  /* ✅ Prevent splitting an experience block across pages (page 2) */
+  .expBlock{
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  /* ✅ Prevent header being left at the bottom while bullets go to next page */
+  .exp__head{
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  /* ✅ Keep section heads with the following content */
+  .section__head{
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  /* ✅ Avoid splitting header (name/contacts) from next section */
+  .header{
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  /* Lists are allowed to split to avoid big jumps/empty space */
+  .list{
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  /* Ensure section dividers (page 2 experience blocks) are visible when printing */
+  .section--divider,
+  .section.expBlock + .section.expBlock{
+    border-top: 1px solid #d1d5db !important;
+    padding-top: 18px;
+    margin-top: 18px;
+  }
+
+  @page{
+    size: A4;
+    margin: 18mm;
+  }
+}
