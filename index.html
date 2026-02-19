@@ -10,113 +10,106 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="styles.css"/>
-
-  <style>
-    .app{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px;}
-    .panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;position:sticky;top:100px;height:calc(100vh - 120px);overflow:auto;}
-    .field{margin-bottom:10px;}
-    .field label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px;}
-    .field input,.field textarea,.field select{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:10px;font:inherit;}
-    .field textarea{min-height:70px;resize:vertical;}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-    .mini-btn{padding:7px 10px;border:1px solid #d1d5db;border-radius:10px;background:#fff;cursor:pointer;font-size:13px;}
-    .expItem{border:1px solid #e5e7eb;border-radius:12px;padding:10px;margin-bottom:10px;background:#fafafa;}
-    .expActions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
-    .toolbar{padding:14px 16px 8px;border-bottom:1px solid #e5e7eb;background:#fff;position:sticky;top:0;z-index:10;}
-    .toolbar__row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
-    .toolbar__import{display:flex;align-items:center;gap:8px;margin-top:-4px;flex-wrap:wrap;}
-    .toolbar__import-label{font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap;}
-    .toolbar__import-area{flex:1;min-width:200px;height:56px;padding:8px 10px;border:1px solid #d1d5db;border-radius:10px;font:12px/1.4 monospace;resize:vertical;}
-    .toolbar button{margin-right:8px;padding:8px 12px;border-radius:10px;border:1px solid #d1d5db;background:#fff;cursor:pointer;}
-    .hint{font-size:12px;color:#6b7280;}
-
-    @media print{
-      .panel,.toolbar{display:none!important;}
-      .app{display:block;padding:0;}
-    }
-  </style>
 </head>
 <body>
 
-<header class="toolbar">
-  <div class="toolbar__actions">
-    <img src="HoneyBadgerLogo.png" alt="Honey Badger" class="toolbar__logo" width="72" height="72"/>
+<header class="toolbar" role="banner">
+  <div class="toolbar__actions" role="toolbar" aria-label="CV actions">
+    <img src="HoneyBadgerLogo.png" alt="" class="toolbar__logo" width="72" height="72" aria-hidden="true"/>
     <span class="toolbar__title">Honey Badger</span>
-    <button id="renderBtn">Generate</button>
-    <button id="printBtn">Export PDF</button>
-    <button id="resetBtn">Reset</button>
-    <span class="toolbar__actions-spacer"></span>
-    <span class="toolbar__actions-spacer"></span>
-    <button id="downloadJsonBtn">Download JSON</button>
-    <button id="uploadJsonBtn">Upload JSON</button>
-    <span class="toolbar__actions-spacer"></span>
+    <button id="renderBtn" type="button" data-i18n="button.generate">Generate</button>
+    <button id="printBtn" type="button" data-i18n="button.exportPdf">Export PDF</button>
+    <button id="resetBtn" type="button" data-i18n="button.reset">Reset</button>
+    <span class="toolbar__actions-spacer" aria-hidden="true"></span>
+    <span class="toolbar__actions-spacer" aria-hidden="true"></span>
+    <button id="downloadJsonBtn" type="button" data-i18n="button.downloadJson">Download JSON</button>
+    <button id="uploadJsonBtn" type="button" data-i18n="button.uploadJson">Upload JSON</button>
+    <span class="toolbar__actions-spacer" aria-hidden="true"></span>
   </div>
-  <input type="file" id="jsonFileInput" accept=".json" style="display:none"/>
+  <input type="file" id="jsonFileInput" accept=".json" data-i18n-aria-label="aria.chooseJsonFile" style="display:none"/>
   <div class="toolbar__import">
-    <label class="toolbar__import-label">Import JSON</label>
-    <textarea id="fJsonPaste" class="toolbar__import-area" placeholder="Paste full CV JSON here..."></textarea>
-    <button id="applyJsonBtn" class="mini-btn" type="button">Apply JSON</button>
+    <label class="toolbar__import-label" for="fJsonPaste" data-i18n="label.importJson">Import JSON</label>
+    <textarea id="fJsonPaste" class="toolbar__import-area" data-i18n-placeholder="placeholder.pasteJson" aria-describedby="import-hint" aria-errormessage="jsonError" aria-invalid="false"></textarea>
+    <button id="applyJsonBtn" class="mini-btn" type="button" data-i18n="button.applyJson">Apply JSON</button>
   </div>
+  <p id="import-hint" class="hint visually-hidden" data-i18n-aria-describedby="aria.importHint">Paste JSON then click Apply to load into the form.</p>
+  <p id="jsonError" class="json-error" role="alert" aria-live="polite" aria-atomic="true" hidden></p>
 </header>
 
 <div class="app">
 
-  <aside class="panel">
+  <aside class="panel" role="complementary" aria-label="CV form">
 
     <div class="field">
-      <label>Name</label>
-      <input id="fName"/>
+      <label for="fName" data-i18n="label.name">Name</label>
+      <input id="fName" autocomplete="name"/>
     </div>
 
     <div class="field">
-      <label>Headline</label>
+      <label for="fHeadline" data-i18n="label.headline">Headline</label>
       <input id="fHeadline"/>
     </div>
 
     <div class="field">
-      <label>Contacts (one per line)</label>
+      <label for="fContacts" data-i18n="label.contacts">Contacts (one per line)</label>
       <textarea id="fContacts"></textarea>
     </div>
 
     <div class="field">
-      <label>Profile</label>
+      <label for="fProfile" data-i18n="label.profile">Profile</label>
       <textarea id="fProfile"></textarea>
     </div>
 
     <div class="field">
-      <label>Key Impact (one per line)</label>
+      <label for="fImpact" data-i18n="label.keyImpact">Key Impact (one per line)</label>
       <textarea id="fImpact"></textarea>
     </div>
 
     <div class="field">
-      <label>Core Competencies (one per line)</label>
+      <label for="fChips" data-i18n="label.coreCompetencies">Core Competencies (one per line)</label>
       <textarea id="fChips"></textarea>
     </div>
 
     <hr/>
 
-    <strong>Experience</strong>
-    <button id="addExpBtn" class="mini-btn">+ Add</button>
+    <strong id="exp-heading" data-i18n="label.experience">Experience</strong>
+    <button id="addExpBtn" class="mini-btn" type="button" aria-describedby="exp-heading" data-i18n="button.addExp">+ Add</button>
     <div id="expList"></div>
 
     <hr/>
 
     <div class="field">
-      <label>Education (one per line)</label>
+      <label for="fEdu" data-i18n="label.education">Education (one per line)</label>
       <textarea id="fEdu"></textarea>
     </div>
 
     <div class="field">
-      <label>Projects (one per line)</label>
+      <label for="fProjects" data-i18n="label.projects">Projects (one per line)</label>
       <textarea id="fProjects"></textarea>
     </div>
 
   </aside>
 
-  <main id="cvRoot" class="doc"></main>
+  <main id="cvRoot" class="doc" role="region" aria-label="CV preview"></main>
 
 </div>
 
+<div id="exportPdfModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="exportPdfModalTitle" hidden>
+  <div class="modal__backdrop"></div>
+  <div class="modal__box">
+    <h2 id="exportPdfModalTitle" class="modal__title" data-i18n="exportPdf.title">Save PDF</h2>
+    <div class="field">
+      <label for="exportPdfFilename" data-i18n="exportPdf.filenameLabel">File name</label>
+      <input type="text" id="exportPdfFilename" class="modal__input" value="CV.pdf" autocomplete="off"/>
+    </div>
+    <div class="modal__actions">
+      <button type="button" id="exportPdfCancel" class="mini-btn" data-i18n="exportPdf.cancel">Cancel</button>
+      <button type="button" id="exportPdfSave" data-i18n="exportPdf.save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="strings.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

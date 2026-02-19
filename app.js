@@ -1,62 +1,69 @@
-window.addEventListener("DOMContentLoaded", () => {
-  // ---------- DOM ----------
-  const elRoot = document.getElementById("cvRoot");
+(function () {
+  "use strict";
 
-  const elRender = document.getElementById("renderBtn");
-  const elPrint = document.getElementById("printBtn");
-  const elDownloadJson = document.getElementById("downloadJsonBtn");
-  const elUploadJson = document.getElementById("uploadJsonBtn");
-  const elJsonFileInput = document.getElementById("jsonFileInput");
-  const elReset = document.getElementById("resetBtn");
-
-  // Optional JSON paste UI
-  const fJsonPaste = document.getElementById("fJsonPaste");
-  const elApplyJson = document.getElementById("applyJsonBtn");
-
-  const fName = document.getElementById("fName");
-  const fHeadline = document.getElementById("fHeadline");
-  const fContacts = document.getElementById("fContacts");
-  const fProfile = document.getElementById("fProfile");
-  const fImpact = document.getElementById("fImpact");
-  const fChips = document.getElementById("fChips");
-  const fExpTitle = document.getElementById("fExpTitle");
-
-  const fEdu = document.getElementById("fEdu");
-  const fProjects = document.getElementById("fProjects");
-
-  const elAddExp = document.getElementById("addExpBtn");
-  const elExpList = document.getElementById("expList");
-
-  // ---------- Guard: required elements ----------
-  const required = [
-    ["cvRoot", elRoot],
-    ["renderBtn", elRender],
-    ["printBtn", elPrint],
-    ["downloadJsonBtn", elDownloadJson],
-    ["uploadJsonBtn", elUploadJson],
-    ["jsonFileInput", elJsonFileInput],
-    ["resetBtn", elReset],
-    ["fName", fName],
-    ["fHeadline", fHeadline],
-    ["fContacts", fContacts],
-    ["fProfile", fProfile],
-    ["fImpact", fImpact],
-    ["fChips", fChips],
-    ["fEdu", fEdu],
-    ["fProjects", fProjects],
-    ["addExpBtn", elAddExp],
-    ["expList", elExpList],
+  const REQUIRED_IDS = [
+    "cvRoot", "renderBtn", "printBtn", "downloadJsonBtn", "uploadJsonBtn",
+    "jsonFileInput", "resetBtn", "fName", "fHeadline", "fContacts", "fProfile",
+    "fImpact", "fChips", "fEdu", "fProjects", "addExpBtn", "expList",
   ];
 
-  const missing = required.filter(([, el]) => !el).map(([id]) => id);
-  if (missing.length) {
-    alert(
-      "Honey Badger: required elements not found in HTML:\n" +
-        missing.map((x) => `#${x}`).join("\n") +
-        "\n\nFix: make sure index.html has these exact id attributes."
-    );
-    return;
+  const INPUT_DEBOUNCE_MS = 120;
+  const PDF_CANVAS_SCALE = 2;
+  const PDF_JPEG_QUALITY = 0.98;
+  const PDF_PAGE_DELAY_MS = 150;
+
+  function debounce(fn, ms) {
+    let t;
+    return function (...args) {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(this, args), ms);
+    };
   }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const missing = REQUIRED_IDS.filter((id) => !document.getElementById(id));
+    if (missing.length) {
+      alert(window.t("alert.requiredElementsMissing", { ids: missing.map((x) => "#" + x).join("\n") }));
+      return;
+    }
+
+    const elRoot = document.getElementById("cvRoot");
+    const elRender = document.getElementById("renderBtn");
+    const elPrint = document.getElementById("printBtn");
+    const elDownloadJson = document.getElementById("downloadJsonBtn");
+    const elUploadJson = document.getElementById("uploadJsonBtn");
+    const elJsonFileInput = document.getElementById("jsonFileInput");
+    const elReset = document.getElementById("resetBtn");
+    const fJsonPaste = document.getElementById("fJsonPaste");
+    const elApplyJson = document.getElementById("applyJsonBtn");
+    const fName = document.getElementById("fName");
+    const fHeadline = document.getElementById("fHeadline");
+    const fContacts = document.getElementById("fContacts");
+    const fProfile = document.getElementById("fProfile");
+    const fImpact = document.getElementById("fImpact");
+    const fChips = document.getElementById("fChips");
+    const fExpTitle = document.getElementById("fExpTitle");
+    const fEdu = document.getElementById("fEdu");
+    const fProjects = document.getElementById("fProjects");
+    const elAddExp = document.getElementById("addExpBtn");
+    const elExpList = document.getElementById("expList");
+    const elJsonError = document.getElementById("jsonError");
+
+    function showJsonError(message) {
+      if (elJsonError) {
+        elJsonError.textContent = message;
+        elJsonError.removeAttribute("hidden");
+        if (fJsonPaste) fJsonPaste.setAttribute("aria-invalid", "true");
+      }
+    }
+
+    function clearJsonError() {
+      if (elJsonError) {
+        elJsonError.textContent = "";
+        elJsonError.setAttribute("hidden", "");
+        if (fJsonPaste) fJsonPaste.setAttribute("aria-invalid", "false");
+      }
+    }
 
   // ---------- STATE ----------
   let expItems = [];
@@ -140,34 +147,34 @@ window.addEventListener("DOMContentLoaded", () => {
       <div class="expItem" data-idx="${idx}">
         <div class="row">
           <div class="field">
-            <label>Company</label>
+            <label>${esc(window.t("label.company"))}</label>
             <input class="xCompany" value="${esc(item.company)}" />
           </div>
           <div class="field">
-            <label>Title</label>
+            <label>${esc(window.t("label.title"))}</label>
             <input class="xTitle" value="${esc(item.title)}" />
           </div>
         </div>
 
         <div class="field">
-          <label>Meta (dates/location)</label>
+          <label>${esc(window.t("label.meta"))}</label>
           <input class="xMeta" value="${esc(item.meta)}" />
         </div>
 
         <div class="field">
-          <label>Summary</label>
+          <label>${esc(window.t("label.summary"))}</label>
           <input class="xSummary" value="${esc(item.summary)}" />
         </div>
 
         <div class="field">
-          <label>Bullets (one per line)</label>
+          <label>${esc(window.t("label.bullets"))}</label>
           <textarea class="xBullets">${esc(item.bullets.join("\n"))}</textarea>
         </div>
 
         <div class="expActions">
-          <button class="mini-btn xUp" type="button">↑</button>
-          <button class="mini-btn xDown" type="button">↓</button>
-          <button class="mini-btn xDel" type="button">Delete</button>
+          <button class="mini-btn xUp" type="button" aria-label="${esc(window.t("aria.moveUp"))}">${esc(window.t("button.moveUp"))}</button>
+          <button class="mini-btn xDown" type="button" aria-label="${esc(window.t("aria.moveDown"))}">${esc(window.t("button.moveDown"))}</button>
+          <button class="mini-btn xDel" type="button" aria-label="${esc(window.t("aria.deleteExperience"))}">${esc(window.t("button.delete"))}</button>
         </div>
       </div>
     `;
@@ -188,9 +195,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }));
   }
 
-  elExpList.addEventListener("input", () => {
-    syncFromEditor();
-  });
+  elExpList.addEventListener("input", debounce(syncFromEditor, INPUT_DEBOUNCE_MS));
 
   elExpList.addEventListener("click", (e) => {
     const box = e.target.closest(".expItem");
@@ -245,7 +250,7 @@ window.addEventListener("DOMContentLoaded", () => {
       profile: { all: fProfile.value.trim() },
       keyImpact: lines(fImpact.value).map((t) => ({ text: t, tags: ["all"] })),
       coreCompetencies: lines(fChips.value).map((t) => ({ text: t, tags: ["all"] })),
-      experienceTitle: fExpTitle?.value?.trim() || "PROFESSIONAL EXPERIENCE",
+      experienceTitle: fExpTitle?.value?.trim() || window.t("section.experience"),
       experience,
       education,
       projects,
@@ -265,8 +270,8 @@ window.addEventListener("DOMContentLoaded", () => {
     const proj = d.projects || [];
     return [
       ...expBlocks,
-      ...(edu.length ? [{ type: "section", title: "EDUCATION", bullets: edu.map((t) => ({ text: t, tags: ["all"] })) }] : []),
-      ...(proj.length ? [{ type: "section", title: "SELECTED PRODUCT PROJECTS", bullets: proj.map((t) => ({ text: t, tags: ["all"] })) }] : []),
+      ...(edu.length ? [{ type: "section", title: window.t("section.education"), bullets: edu.map((t) => ({ text: t, tags: ["all"] })) }] : []),
+      ...(proj.length ? [{ type: "section", title: window.t("section.projects"), bullets: proj.map((t) => ({ text: t, tags: ["all"] })) }] : []),
     ];
   }
 
@@ -391,9 +396,23 @@ window.addEventListener("DOMContentLoaded", () => {
     const impacts = (d.keyImpact || []).map((x) => x.text);
     const chips = (d.coreCompetencies || []).map((x) => x.text);
 
-    const page1ExpTitle = d.experienceTitle || "PROFESSIONAL EXPERIENCE";
+    const page1ExpTitle = d.experienceTitle || window.t("section.experience");
     const blocks = dataToBlocks(d);
     const hasPage2 = blocks.length > 0;
+
+    const hasContent =
+      (d.name || "").trim() ||
+      (d.headline || "").trim() ||
+      (d.profile?.all || "").trim() ||
+      (d.contacts || []).length ||
+      impacts.length ||
+      chips.length ||
+      blocks.length;
+
+    if (!hasContent) {
+      elRoot.innerHTML = '<section class="page"></section>';
+      return;
+    }
 
     const page1 = `
       <section class="page ${hasPage2 ? "page--break" : ""}">
@@ -408,7 +427,7 @@ window.addEventListener("DOMContentLoaded", () => {
         </section>
 
         <section class="section">
-          ${sectionHead("PROFILE")}
+          ${sectionHead(window.t("section.profile"))}
           <p class="body">${esc(d.profile?.all || "")}</p>
         </section>
 
@@ -416,7 +435,7 @@ window.addEventListener("DOMContentLoaded", () => {
           impacts.length
             ? `
           <section class="section">
-            ${sectionHead("KEY IMPACT")}
+            ${sectionHead(window.t("section.keyImpact"))}
             <div class="card">${listHtml(impacts)}</div>
           </section>
         `
@@ -427,7 +446,7 @@ window.addEventListener("DOMContentLoaded", () => {
           chips.length
             ? `
           <section class="section">
-            ${sectionHead("CORE COMPETENCIES")}
+            ${sectionHead(window.t("section.coreCompetencies"))}
             <div class="chips">${chips.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
           </section>
         `
@@ -555,7 +574,7 @@ window.addEventListener("DOMContentLoaded", () => {
       profile: { all: incoming?.summary || "" },
       keyImpact: [],
       coreCompetencies: skills.map((t) => ({ text: t, tags: ["all"] })),
-      experienceTitle: "PROFESSIONAL EXPERIENCE",
+      experienceTitle: window.t("section.experience"),
       experience,
       education: eduLines,
       projects: [],
@@ -566,8 +585,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const incoming = unwrapPayload(raw);
 
     if (!incoming || typeof incoming !== "object") {
-      alert("Invalid JSON: root is not an object");
-      return;
+      return { ok: false, error: window.t("alert.jsonRootInvalid") };
     }
 
     const normalized = normalizeIncomingToInternalSchema(incoming);
@@ -583,7 +601,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (fExpTitle) {
       fExpTitle.value =
-        normalized.experienceTitle ?? normalized.pages?.page1?.experienceTitle ?? "PROFESSIONAL EXPERIENCE";
+        normalized.experienceTitle ?? normalized.pages?.page1?.experienceTitle ?? window.t("section.experience");
     }
 
     expItems = [];
@@ -639,6 +657,7 @@ window.addEventListener("DOMContentLoaded", () => {
     renderDoc(buildInternalFromForm());
 
     if (fJsonPaste) fJsonPaste.value = "";
+    return { ok: true };
   }
 
   // ---------- ACTIONS ----------
@@ -647,14 +666,59 @@ window.addEventListener("DOMContentLoaded", () => {
     renderDoc(buildInternalFromForm());
   });
 
-  elPrint.addEventListener("click", () => {
+  const elExportPdfModal = document.getElementById("exportPdfModal");
+  const elExportPdfFilename = document.getElementById("exportPdfFilename");
+  const elExportPdfCancel = document.getElementById("exportPdfCancel");
+  const elExportPdfSave = document.getElementById("exportPdfSave");
+
+  function openExportPdfModal() {
+    if (!elExportPdfModal || !elExportPdfFilename) return;
+    elExportPdfFilename.value = "CV.pdf";
+    elExportPdfModal.removeAttribute("hidden");
+    elExportPdfFilename.focus();
+  }
+
+  function closeExportPdfModal() {
+    if (elExportPdfModal) elExportPdfModal.setAttribute("hidden", "");
+  }
+
+  function sanitizePdfFilename(name) {
+    const base = String(name || "CV.pdf").trim() || "CV.pdf";
+    return base.toLowerCase().endsWith(".pdf") ? base : base + ".pdf";
+  }
+
+  function savePdfBlob(blob, suggestedName) {
+    const filename = sanitizePdfFilename(suggestedName);
+    if (typeof window.showSaveFilePicker === "function") {
+      return window
+        .showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+        })
+        .then((handle) => handle.createWritable())
+        .then((writable) => {
+          writable.write(blob);
+          return writable.close();
+        });
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function runPdfExport(filename) {
     syncFromEditor();
     renderDoc(buildInternalFromForm());
     const el = elRoot;
     const done = () => {
       el.classList.remove("pdf-export");
       elPrint.disabled = false;
-      elPrint.textContent = "Export PDF";
+      elPrint.textContent = window.t("button.exportPdf");
       renderDoc(buildInternalFromForm());
     };
 
@@ -664,7 +728,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (usePerPageExport) {
       elPrint.disabled = true;
-      elPrint.textContent = "…";
+      elPrint.textContent = window.t("button.exportPdfBusy");
       el.classList.add("pdf-export");
       el.scrollIntoView({ block: "start", behavior: "auto" });
       if (el.parentElement) el.parentElement.scrollTop = 0;
@@ -691,7 +755,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
         const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
         const canvasOpt = {
-          scale: 2,
+          scale: PDF_CANVAS_SCALE,
           useCORS: true,
           scrollX: 0,
           scrollY: 0,
@@ -700,8 +764,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
         const addPageToPdf = (pageIndex) => {
           if (pageIndex >= remainingPages.length) {
-            pdf.save("CV.pdf");
-            done();
+            const blob = pdf.output("blob");
+            savePdfBlob(blob, filename).then(done).catch((err) => {
+              console.error(err);
+              done();
+            });
             return;
           }
           const pageEl = remainingPages[pageIndex];
@@ -709,7 +776,7 @@ window.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => {
             html2canvas(pageEl, canvasOpt)
               .then((canvas) => {
-                const dataUrl = canvas.toDataURL("image/jpeg", 0.98);
+                const dataUrl = canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
                 if (pageIndex > 0) pdf.addPage();
                 pdf.addImage(dataUrl, "JPEG", 0, 0, 210, 297);
                 addPageToPdf(pageIndex + 1);
@@ -719,23 +786,23 @@ window.addEventListener("DOMContentLoaded", () => {
                 done();
                 window.print();
               });
-          }, 150);
+          }, PDF_PAGE_DELAY_MS);
         };
 
         addPageToPdf(0);
       });
     } else if (typeof html2pdf !== "undefined") {
       elPrint.disabled = true;
-      elPrint.textContent = "…";
+      elPrint.textContent = window.t("button.exportPdfBusy");
       el.classList.add("pdf-export");
       el.scrollIntoView({ block: "start", behavior: "auto" });
       if (el.parentElement) el.parentElement.scrollTop = 0;
 
       const opt = {
         margin: 0,
-        filename: "CV.pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+        filename: sanitizePdfFilename(filename),
+        image: { type: "jpeg", quality: PDF_JPEG_QUALITY },
+        html2canvas: { scale: PDF_CANVAS_SCALE, useCORS: true, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
 
@@ -763,8 +830,35 @@ window.addEventListener("DOMContentLoaded", () => {
       });
     } else {
       window.print();
+      done();
     }
+  }
+
+  elPrint.addEventListener("click", () => {
+    openExportPdfModal();
   });
+
+  if (elExportPdfCancel) {
+    elExportPdfCancel.addEventListener("click", closeExportPdfModal);
+  }
+  if (elExportPdfSave) {
+    elExportPdfSave.addEventListener("click", () => {
+      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
+      closeExportPdfModal();
+      runPdfExport(name || "CV.pdf");
+    });
+  }
+  if (elExportPdfModal && elExportPdfModal.querySelector(".modal__backdrop")) {
+    elExportPdfModal.querySelector(".modal__backdrop").addEventListener("click", closeExportPdfModal);
+  }
+  if (elExportPdfFilename) {
+    elExportPdfFilename.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (elExportPdfSave) elExportPdfSave.click();
+      }
+    });
+  }
 
   elDownloadJson.addEventListener("click", () => {
     syncFromEditor();
@@ -782,11 +876,17 @@ window.addEventListener("DOMContentLoaded", () => {
     reader.onload = (evt) => {
       try {
         const data = JSON.parse(String(evt.target.result || "{}"));
-        loadFromJsonData(data);
+        const result = loadFromJsonData(data);
+        if (result.ok) {
+          clearJsonError();
+        } else {
+          showJsonError(result.error);
+        }
       } catch (err) {
         console.error(err);
-        alert("Invalid JSON file: " + (err?.message || err));
+        showJsonError(window.t("alert.jsonFileInvalid", { detail: err?.message || String(err) }));
       }
+      e.target.value = "";
     };
     reader.readAsText(file);
   });
@@ -795,25 +895,34 @@ window.addEventListener("DOMContentLoaded", () => {
     elApplyJson.addEventListener("click", (e) => {
       e.preventDefault();
       const raw = fJsonPaste.value.trim();
-      if (!raw) return alert("Paste JSON first");
+      if (!raw) {
+        showJsonError(window.t("alert.pasteJsonFirst"));
+        return;
+      }
       try {
         const data = JSON.parse(raw);
-        loadFromJsonData(data);
+        const result = loadFromJsonData(data);
+        if (result.ok) {
+          clearJsonError();
+        } else {
+          showJsonError(result.error);
+        }
       } catch (err) {
         console.error(err);
-        alert("JSON parse error: " + (err?.message || err));
+        showJsonError(window.t("alert.jsonParseError", { detail: err?.message || String(err) }));
       }
     });
   }
 
   elReset.addEventListener("click", () => {
+    if (!confirm(window.t("confirm.reset"))) return;
     fName.value = "";
     fHeadline.value = "";
     fContacts.value = "";
     fProfile.value = "";
     fImpact.value = "";
     fChips.value = "";
-    if (fExpTitle) fExpTitle.value = "PROFESSIONAL EXPERIENCE";
+    if (fExpTitle) fExpTitle.value = window.t("section.experience");
     fEdu.value = "";
     fProjects.value = "";
     if (fJsonPaste) fJsonPaste.value = "";
@@ -822,7 +931,23 @@ window.addEventListener("DOMContentLoaded", () => {
     renderDoc(buildInternalFromForm());
   });
 
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (elExportPdfModal && !elExportPdfModal.hasAttribute("hidden")) {
+      closeExportPdfModal();
+      e.preventDefault();
+      return;
+    }
+    const el = document.activeElement;
+    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) {
+      el.blur();
+    }
+  });
+
+  if (typeof window.applyLocale === "function") window.applyLocale();
+
   // ---------- INIT ----------
   renderExpEditor();
   renderDoc(buildInternalFromForm());
-});
+  });
+})();
