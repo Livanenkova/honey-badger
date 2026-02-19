@@ -678,8 +678,9 @@
     elExportPdfFilename.focus();
   }
 
-  function closeExportPdfModal() {
+  function closeExportPdfModal(returnFocusToPrint) {
     if (elExportPdfModal) elExportPdfModal.setAttribute("hidden", "");
+    if (returnFocusToPrint && elPrint) elPrint.focus();
   }
 
   function sanitizePdfFilename(name) {
@@ -720,6 +721,7 @@
       elPrint.disabled = false;
       elPrint.textContent = window.t("button.exportPdf");
       renderDoc(buildInternalFromForm());
+      if (elPrint) elPrint.focus();
     };
 
     const usePerPageExport =
@@ -839,17 +841,17 @@
   });
 
   if (elExportPdfCancel) {
-    elExportPdfCancel.addEventListener("click", closeExportPdfModal);
+    elExportPdfCancel.addEventListener("click", () => closeExportPdfModal(true));
   }
   if (elExportPdfSave) {
     elExportPdfSave.addEventListener("click", () => {
       const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
-      closeExportPdfModal();
+      closeExportPdfModal(false);
       runPdfExport(name || "CV.pdf");
     });
   }
   if (elExportPdfModal && elExportPdfModal.querySelector(".modal__backdrop")) {
-    elExportPdfModal.querySelector(".modal__backdrop").addEventListener("click", closeExportPdfModal);
+    elExportPdfModal.querySelector(".modal__backdrop").addEventListener("click", () => closeExportPdfModal(true));
   }
   if (elExportPdfFilename) {
     elExportPdfFilename.addEventListener("keydown", (e) => {
@@ -858,6 +860,29 @@
         if (elExportPdfSave) elExportPdfSave.click();
       }
     });
+  }
+
+  function trapFocusInModal(modalEl, e) {
+    if (e.key !== "Tab" || !modalEl || modalEl.hasAttribute("hidden")) return;
+    const focusable = modalEl.querySelectorAll(
+      'input:not([disabled]), button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+  if (elExportPdfModal) {
+    elExportPdfModal.addEventListener("keydown", (e) => trapFocusInModal(elExportPdfModal, e));
   }
 
   elDownloadJson.addEventListener("click", () => {
@@ -934,7 +959,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (elExportPdfModal && !elExportPdfModal.hasAttribute("hidden")) {
-      closeExportPdfModal();
+      closeExportPdfModal(true);
       e.preventDefault();
       return;
     }
@@ -945,6 +970,24 @@
   });
 
   if (typeof window.applyLocale === "function") window.applyLocale();
+  if (typeof window.getLocale === "function") {
+    document.documentElement.setAttribute("lang", window.getLocale());
+  }
+
+  const elLocaleSelect = document.getElementById("localeSelect");
+  if (elLocaleSelect) {
+    const cur = typeof window.getLocale === "function" ? window.getLocale() : "en";
+    elLocaleSelect.value = cur;
+    elLocaleSelect.addEventListener("change", () => {
+      const code = elLocaleSelect.value;
+      if (window.setLocale(code)) {
+        document.documentElement.setAttribute("lang", code);
+        if (typeof window.applyLocale === "function") window.applyLocale();
+        renderExpEditor();
+        renderDoc(buildInternalFromForm());
+      }
+    });
+  }
 
   // ---------- INIT ----------
   renderExpEditor();
