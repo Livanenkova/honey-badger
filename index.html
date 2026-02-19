@@ -18,11 +18,11 @@
   <div class="toolbar__row" role="toolbar" aria-label="CV actions">
     <img src="HoneyBadgerLogo.png" alt="" class="toolbar__logo" width="72" height="72" aria-hidden="true"/>
     <span class="toolbar__title">Honey Badger</span>
-    <button id="renderBtn" type="button" data-i18n="button.generate">Generate</button>
-    <button id="resetBtn" type="button" data-i18n="button.reset">Reset</button>
-    <button id="downloadJsonBtn" type="button" data-i18n="button.downloadJson">Download JSON</button>
-    <button id="uploadJsonBtn" type="button" data-i18n="button.uploadJson">Upload JSON</button>
-    <button id="printBtn" type="button" data-i18n="button.exportPdf">Export PDF</button>
+    <button id="renderBtn" type="button" data-i18n="button.generate" data-i18n-title="hint.generate" title="Update the CV preview with current form data.">Generate</button>
+    <button id="resetBtn" type="button" data-i18n="button.reset" data-i18n-title="hint.reset" title="Clear all fields and start over.">Reset</button>
+    <button id="downloadJsonBtn" type="button" data-i18n="button.downloadJson" data-i18n-title="hint.downloadJson" title="Download your CV data as a JSON file.">Download JSON</button>
+    <button id="uploadJsonBtn" type="button" data-i18n="button.uploadJson" data-i18n-title="hint.uploadJson" title="Upload a JSON file to load into the form.">Upload JSON</button>
+    <button id="printBtn" type="button" data-i18n="button.exportPdf" data-i18n-title="hint.exportPdf" title="Save the CV as a PDF file.">Export PDF</button>
     <div class="toolbar__locale" aria-label="Language">
       <label for="localeSelect" class="visually-hidden">Language</label>
       <select id="localeSelect" class="locale-select" aria-label="Language">
@@ -35,7 +35,7 @@
   <div class="toolbar__import">
     <label class="toolbar__import-label" for="fJsonPaste" data-i18n="label.importJson">Import JSON</label>
     <textarea id="fJsonPaste" class="toolbar__import-area" data-i18n-placeholder="placeholder.pasteJson" aria-describedby="import-hint" aria-errormessage="jsonError" aria-invalid="false"></textarea>
-    <button id="applyJsonBtn" class="mini-btn" type="button" data-i18n="button.applyJson">Apply JSON</button>
+    <button id="applyJsonBtn" class="mini-btn" type="button" data-i18n="button.applyJson" data-i18n-title="hint.applyJson" title="Load the pasted JSON into the form.">Apply JSON</button>
   </div>
   <p id="import-hint" class="hint visually-hidden" data-i18n-aria-describedby="aria.importHint">Paste JSON then click Apply to load into the form.</p>
   <p id="jsonError" class="json-error" role="alert" aria-live="polite" aria-atomic="true" hidden></p>
@@ -78,7 +78,7 @@
     <hr/>
 
     <strong id="exp-heading" data-i18n="label.experience">Experience</strong>
-    <button id="addExpBtn" class="mini-btn" type="button" aria-describedby="exp-heading" data-i18n="button.addExp">+ Add</button>
+    <button id="addExpBtn" class="mini-btn" type="button" aria-describedby="exp-heading" data-i18n="button.addExp" data-i18n-title="hint.addExp" title="Add a new job or experience entry.">+ Add</button>
     <div id="expList"></div>
 
     <hr/>
@@ -106,6 +106,7 @@
     <div class="field">
       <label for="exportPdfFilename" data-i18n="exportPdf.filenameLabel">File name</label>
       <input type="text" id="exportPdfFilename" class="modal__input" value="CV.pdf" autocomplete="off"/>
+      <p class="modal__hint hint" data-i18n="exportPdf.filenameHint">.pdf will be added if needed.</p>
     </div>
     <div class="modal__actions">
       <button type="button" id="exportPdfCancel" class="mini-btn" data-i18n="exportPdf.cancel">Cancel</button>

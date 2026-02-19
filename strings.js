@@ -72,8 +72,25 @@
       exportPdf: {
         title: "Save PDF",
         filenameLabel: "File name",
+        filenameHint: ".pdf will be added if needed.",
         save: "Save",
         cancel: "Cancel",
+      },
+      empty: {
+        preview: "Fill in the form on the left to see your CV here.",
+        experience: "Click «+ Add» to add your first job.",
+      },
+      success: {
+        jsonApplied: "JSON applied. Form updated.",
+      },
+      hint: {
+        generate: "Update the CV preview with current form data.",
+        reset: "Clear all fields and start over.",
+        downloadJson: "Download your CV data as a JSON file.",
+        uploadJson: "Upload a JSON file to load into the form.",
+        exportPdf: "Save the CV as a PDF file.",
+        applyJson: "Load the pasted JSON into the form.",
+        addExp: "Add a new job or experience entry.",
       },
     },
     ru: {
@@ -141,8 +158,25 @@
       exportPdf: {
         title: "Сохранить PDF",
         filenameLabel: "Имя файла",
+        filenameHint: "Расширение .pdf будет добавлено при необходимости.",
         save: "Сохранить",
         cancel: "Отмена",
+      },
+      empty: {
+        preview: "Заполните форму слева — здесь появится превью резюме.",
+        experience: "Нажмите «+ Добавить», чтобы добавить первое место работы.",
+      },
+      success: {
+        jsonApplied: "JSON применён. Форма обновлена.",
+      },
+      hint: {
+        generate: "Обновить превью резюме по данным формы.",
+        reset: "Очистить все поля и начать заново.",
+        downloadJson: "Скачать данные резюме в виде JSON-файла.",
+        uploadJson: "Загрузить JSON-файл в форму.",
+        exportPdf: "Сохранить резюме в PDF.",
+        applyJson: "Загрузить вставленный JSON в форму.",
+        addExp: "Добавить новое место работы или опыт.",
       },
     },
   };
@@ -220,6 +254,11 @@
       const firstId = ids[0];
       const hint = firstId ? document.getElementById(firstId) : null;
       if (hint && key) hint.textContent = window.t(key);
+    });
+
+    root.querySelectorAll("[data-i18n-title]").forEach(function (el) {
+      const key = el.getAttribute("data-i18n-title");
+      if (key) el.setAttribute("title", window.t(key));
     });
   };
 })();
