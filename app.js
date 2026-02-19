@@ -60,8 +60,19 @@
     function clearJsonError() {
       if (elJsonError) {
         elJsonError.textContent = "";
+        elJsonError.classList.remove("json-error--success");
         elJsonError.setAttribute("hidden", "");
         if (fJsonPaste) fJsonPaste.setAttribute("aria-invalid", "false");
+      }
+    }
+
+    function showJsonSuccess(message) {
+      if (elJsonError) {
+        elJsonError.textContent = message;
+        elJsonError.classList.add("json-error--success");
+        elJsonError.removeAttribute("hidden");
+        if (fJsonPaste) fJsonPaste.setAttribute("aria-invalid", "false");
+        setTimeout(clearJsonError, 2500);
       }
     }
 
@@ -182,6 +193,15 @@
 
   function renderExpEditor() {
     elExpList.innerHTML = expItems.map((it, i) => expTemplate(it, i)).join("");
+    const hint = elExpList.querySelector(".exp-empty-hint");
+    if (hint) hint.remove();
+    if (expItems.length === 0) {
+      const p = document.createElement("p");
+      p.className = "exp-empty-hint hint";
+      p.textContent = window.t("empty.experience");
+      p.setAttribute("aria-live", "polite");
+      elExpList.appendChild(p);
+    }
   }
 
   function syncFromEditor() {
@@ -410,7 +430,8 @@
       blocks.length;
 
     if (!hasContent) {
-      elRoot.innerHTML = '<section class="page"></section>';
+      const emptyMsg = window.t("empty.preview");
+      elRoot.innerHTML = `<section class="page page--empty-state"><p class="empty-state__text">${esc(emptyMsg)}</p></section>`;
       return;
     }
 
@@ -904,6 +925,7 @@
         const result = loadFromJsonData(data);
         if (result.ok) {
           clearJsonError();
+          showJsonSuccess(window.t("success.jsonApplied"));
         } else {
           showJsonError(result.error);
         }
@@ -929,6 +951,7 @@
         const result = loadFromJsonData(data);
         if (result.ok) {
           clearJsonError();
+          showJsonSuccess(window.t("success.jsonApplied"));
         } else {
           showJsonError(result.error);
         }
@@ -973,6 +996,52 @@
   if (typeof window.getLocale === "function") {
     document.documentElement.setAttribute("lang", window.getLocale());
   }
+
+  (function initFastTooltips() {
+    var tooltipEl = null;
+    var tooltipTimer = null;
+    function showTooltip(text, x, y) {
+      if (!text) return;
+      if (!tooltipEl) {
+        tooltipEl = document.createElement("div");
+        tooltipEl.className = "fast-tooltip";
+        tooltipEl.setAttribute("role", "tooltip");
+        document.body.appendChild(tooltipEl);
+      }
+      tooltipEl.textContent = text;
+      tooltipEl.style.left = x + "px";
+      tooltipEl.style.top = (y + 12) + "px";
+      tooltipEl.classList.add("fast-tooltip--visible");
+    }
+    function hideTooltip() {
+      if (tooltipTimer) {
+        clearTimeout(tooltipTimer);
+        tooltipTimer = null;
+      }
+      if (tooltipEl) tooltipEl.classList.remove("fast-tooltip--visible");
+    }
+    document.body.addEventListener("mouseover", function (e) {
+      var el = e.target.closest("[title]");
+      if (!el || !el.title) {
+        hideTooltip();
+        return;
+      }
+      var text = el.getAttribute("title");
+      if (!text) {
+        hideTooltip();
+        return;
+      }
+      tooltipTimer = setTimeout(function () {
+        tooltipTimer = null;
+        var rect = el.getBoundingClientRect();
+        showTooltip(text, rect.left, rect.bottom);
+      }, 400);
+    });
+    document.body.addEventListener("mouseout", function (e) {
+      var to = e.relatedTarget;
+      if (!to || (!to.closest("[title]") && !(tooltipEl && tooltipEl.contains(to)))) hideTooltip();
+    });
+  })();
 
   const elLocaleSelect = document.getElementById("localeSelect");
   if (elLocaleSelect) {
