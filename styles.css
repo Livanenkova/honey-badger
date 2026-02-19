@@ -30,7 +30,121 @@ body{
   background: #f3f4f6;
 }
 
-/* ================= TOOLBAR (optional, if toolbar styles live here) ================= */
+/* ================= APP LAYOUT ================= */
+
+.app{
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+
+.panel{
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  position: sticky;
+  top: 100px;
+  height: calc(100vh - 120px);
+  overflow: auto;
+}
+
+.field{
+  margin-bottom: 10px;
+}
+
+.field label{
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.field input,
+.field textarea,
+.field select{
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.field textarea{
+  min-height: 70px;
+  resize: vertical;
+}
+
+.row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mini-btn{
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.expItem{
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #fafafa;
+}
+
+.expActions{
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar__import{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar__import-label{
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.toolbar__import-area{
+  flex: 1;
+  min-width: 200px;
+  height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font: 12px/1.4 monospace;
+  resize: vertical;
+}
+
+.visually-hidden{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ================= TOOLBAR ================= */
 
 .toolbar{
   position: sticky;
@@ -107,9 +221,86 @@ button{
   cursor: pointer;
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible{
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
 .hint{
   color: var(--muted);
   font-size: 12px;
+}
+
+.json-error{
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #b91c1c;
+  min-height: 1.4em;
+}
+
+.json-error:empty,
+.json-error[hidden]{
+  display: none;
+}
+
+/* ================= MODAL ================= */
+
+.modal{
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal[hidden]{
+  display: none;
+}
+
+.modal__backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modal__box{
+  position: relative;
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 280px;
+  max-width: 360px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal__title{
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.modal__input{
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font: inherit;
+  margin-bottom: 16px;
+}
+
+.modal__actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media print{
+  .modal{ display: none !important; }
 }
 
 /* ================= DOCUMENT ================= */
@@ -353,6 +544,11 @@ button{
 @media print{
 
   body{ background: #fff; }
+
+  .panel,
+  .toolbar{ display: none !important; }
+
+  .app{ display: block; padding: 0; }
 
   .no-print{ display: none !important; }
 
