@@ -12,6 +12,7 @@ A simple, offline-first CV/resume builder. Fill in the form, see a live preview,
 - **Accessibility** — Keyboard navigation, focus management, ARIA, skip link, tooltips. Escape blurs fields; modal traps focus.
 - **Responsive** — On narrow screens, the form stacks above the preview.
 - **User-friendly** — Empty-state hints, success/error messages for JSON import, confirm before reset, fast tooltips on buttons.
+- **Custom section titles** — Change labels like "Profile", "Key Impact", "Education" via **Edit heading** next to each section; click **Save** or tap outside to apply. Preview updates when you click **Generate**.
 
 ## Try it
 
