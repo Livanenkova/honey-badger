@@ -108,6 +108,11 @@
         save: "Save",
         cancel: "Cancel",
       },
+      template: {
+        label: "Template",
+        default: "Default",
+        ats: "ATS",
+      },
       empty: {
         preview: "Fill in the form on the left to see your CV here.",
         experience: "Click «+ Add» to add your first job.",
@@ -227,6 +232,11 @@
         filenameHint: "Расширение .pdf будет добавлено при необходимости.",
         save: "Сохранить",
         cancel: "Отмена",
+      },
+      template: {
+        label: "Шаблон",
+        default: "Обычный",
+        ats: "ATS",
       },
       empty: {
         preview: "Заполните форму слева — здесь появится превью резюме.",

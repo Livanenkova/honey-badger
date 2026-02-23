@@ -56,6 +56,7 @@
     const elExpList = document.getElementById("expList");
     const elJsonError = document.getElementById("jsonError");
     const elNameHint = document.getElementById("fNameHint");
+    const elTemplateSelect = document.getElementById("templateSelect");
 
     let formDirty = false;
     function setDirty() {
@@ -186,6 +187,14 @@
       <div class="${cls}">
         <div class="section__title">${esc(title)}</div>
         <div class="section__line"></div>
+      </div>
+    `;
+  }
+
+  function sectionHeadAts(title) {
+    return `
+      <div class="section__head section__head--ats">
+        <div class="section__title">${esc(title)}</div>
       </div>
     `;
   }
@@ -422,11 +431,11 @@
     if (!panel) return;
     panel.addEventListener("focusin", (e) => {
       const ta = e.target;
-      if (ta.matches && ta.matches(".field textarea")) ta.style.height = EXPANDED_HEIGHT + "px";
+      if (ta.matches?.(".field textarea")) ta.style.height = EXPANDED_HEIGHT + "px";
     });
     panel.addEventListener("focusout", (e) => {
       const ta = e.target;
-      if (ta.matches && ta.matches(".field textarea")) ta.style.height = COLLAPSED_HEIGHT + "px";
+      if (ta.matches?.(".field textarea")) ta.style.height = COLLAPSED_HEIGHT + "px";
     });
   })();
 
@@ -588,6 +597,10 @@
 
   // ---------- RENDER ----------
   function renderDoc(d) {
+    const template = (elTemplateSelect && elTemplateSelect.value) || "default";
+    const isAts = template === "ats";
+    elRoot.classList.toggle("doc--ats", isAts);
+
     const impacts = (d.keyImpact || []).map((x) => x.text);
     const chips = (d.coreCompetencies || []).map((x) => x.text);
 
@@ -613,6 +626,13 @@
       return;
     }
 
+    const sectionHeadFn = isAts ? sectionHeadAts : sectionHead;
+    const competenciesMarkup = chips.length
+      ? isAts
+        ? listHtml(chips)
+        : chips.map((t) => `<span class="chip">${esc(t)}</span>`).join("")
+      : "";
+
     const page1 = `
       <section class="page ${hasPage2 ? "page--break" : ""}">
         <section class="header">
@@ -626,7 +646,7 @@
         </section>
 
         <section class="section">
-          ${sectionHead(profileTitle)}
+          ${sectionHeadFn(profileTitle)}
           <p class="body">${esc(d.profile?.all || "")}</p>
         </section>
 
@@ -634,7 +654,7 @@
           impacts.length
             ? `
           <section class="section">
-            ${sectionHead(keyImpactTitle)}
+            ${sectionHeadFn(keyImpactTitle)}
             <div class="card">${listHtml(impacts)}</div>
           </section>
         `
@@ -645,20 +665,21 @@
           chips.length
             ? `
           <section class="section">
-            ${sectionHead(coreCompetenciesTitle)}
-            <div class="chips">${chips.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+            ${sectionHeadFn(coreCompetenciesTitle)}
+            <div class="${isAts ? "ats-list-wrap" : "chips"}">${competenciesMarkup}</div>
           </section>
         `
             : ""
         }
 
         <section class="section section--experience">
-          ${sectionHead(page1ExpTitle)}
+          ${sectionHeadFn(page1ExpTitle)}
           <div class="experience-container"></div>
         </section>
       </section>
     `;
 
+    const sectionHeadBlockFn = isAts ? sectionHeadAts : (title, variant) => sectionHead(title, variant);
     const page2 = `
       <section class="page">
         ${blocks
@@ -675,17 +696,20 @@
               prev.type === "experience";
 
             if (b.type === "languages" && Array.isArray(b.items)) {
+              const langContent = isAts
+                ? listHtml(b.items || [])
+                : `<div class="chips">${(b.items || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>`;
               return `
                 <section class="section">
-                  ${sectionHead(b.title || "", "grey")}
-                  <div class="chips">${(b.items || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+                  ${sectionHeadBlockFn(b.title || "", "grey")}
+                  <div class="${isAts ? "ats-list-wrap" : ""}">${langContent}</div>
                 </section>
               `;
             }
             if (b.type === "section") {
               return `
                 <section class="section">
-                  ${sectionHead(b.title || "", "grey")}
+                  ${sectionHeadBlockFn(b.title || "", "grey")}
                   ${listHtml(bullets)}
                 </section>
               `;
@@ -953,24 +977,31 @@
     syncFromEditor();
     renderDoc(buildInternalFromForm());
     const el = elRoot;
-    const done = () => {
-      el.classList.remove("pdf-export");
-      elPrint.disabled = false;
-      elPrint.textContent = window.t("button.exportPdf");
-      renderDoc(buildInternalFromForm());
-      if (elPrint) elPrint.focus();
-    };
+
+    function setPdfExportUi(exporting) {
+      el.classList.toggle("pdf-export", exporting);
+      elPrint.disabled = exporting;
+      elPrint.textContent = window.t(exporting ? "button.exportPdfBusy" : "button.exportPdf");
+      if (!exporting) {
+        renderDoc(buildInternalFromForm());
+        if (elPrint) elPrint.focus();
+      }
+    }
+
+    const done = () => setPdfExportUi(false);
+
+    function startPdfExport() {
+      setPdfExportUi(true);
+      el.scrollIntoView({ block: "start", behavior: "auto" });
+      if (el.parentElement) el.parentElement.scrollTop = 0;
+    }
 
     const usePerPageExport =
       typeof html2canvas !== "undefined" &&
       (typeof jspdf !== "undefined" || typeof jsPDF !== "undefined");
 
     if (usePerPageExport) {
-      elPrint.disabled = true;
-      elPrint.textContent = window.t("button.exportPdfBusy");
-      el.classList.add("pdf-export");
-      el.scrollIntoView({ block: "start", behavior: "auto" });
-      if (el.parentElement) el.parentElement.scrollTop = 0;
+      startPdfExport();
 
       requestAnimationFrame(() => {
         const remainingPages = removeEmptyPages(el);
@@ -1020,11 +1051,7 @@
         addPageToPdf(0);
       });
     } else if (typeof html2pdf !== "undefined") {
-      elPrint.disabled = true;
-      elPrint.textContent = window.t("button.exportPdfBusy");
-      el.classList.add("pdf-export");
-      el.scrollIntoView({ block: "start", behavior: "auto" });
-      if (el.parentElement) el.parentElement.scrollTop = 0;
+      startPdfExport();
 
       const opt = {
         margin: 0,
@@ -1342,6 +1369,13 @@
         renderExpEditor();
         renderDoc(buildInternalFromForm());
       }
+    });
+  }
+
+  if (elTemplateSelect) {
+    elTemplateSelect.addEventListener("change", () => {
+      syncFromEditor();
+      renderDoc(buildInternalFromForm());
     });
   }
 

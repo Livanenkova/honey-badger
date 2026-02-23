@@ -30,6 +30,13 @@
         <option value="ru">RU</option>
       </select>
     </div>
+    <div class="toolbar__template" aria-label="CV template">
+      <label for="templateSelect" class="visually-hidden" data-i18n="template.label">Template</label>
+      <select id="templateSelect" class="locale-select template-select" aria-label="CV template">
+        <option value="default" data-i18n="template.default">Default</option>
+        <option value="ats" data-i18n="template.ats">ATS</option>
+      </select>
+    </div>
   </div>
   <input type="file" id="jsonFileInput" accept=".json" data-i18n-aria-label="aria.chooseJsonFile" style="display:none"/>
   <div class="toolbar__import">
