@@ -430,6 +430,10 @@ button.section-title-done-btn{
   margin-left: auto;
 }
 
+.toolbar__template .template-select{
+  min-width: 100px;
+}
+
 .locale-select{
   height: 36px;
   padding: 0 28px 0 10px;
@@ -799,6 +803,116 @@ select:focus-visible{
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 600;
+}
+
+/* ================= ATS TEMPLATE ================= */
+/* ATS-friendly: single column, standard fonts, minimal styling for better parsing.
+   Best practices: single column, 10–12pt body, standard fonts (Arial/Helvetica),
+   no tables/graphics, simple bullets, no decorative lines, margins ≥0.5". */
+
+.doc.doc--ats .page{
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.35;
+}
+
+.doc.doc--ats .header{
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doc.doc--ats .header__right{
+  text-align: left;
+  min-width: 0;
+}
+
+.doc.doc--ats .header__right .contact{
+  display: block;
+}
+
+.doc.doc--ats .name{
+  font-size: 18pt;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.doc.doc--ats .headline,
+.doc.doc--ats .contact{
+  color: #333;
+  font-size: 11pt;
+}
+
+.doc.doc--ats .section__head--ats{
+  margin-bottom: 8px;
+}
+
+.doc.doc--ats .section__head--ats .section__title{
+  color: #000;
+  letter-spacing: 0.05em;
+  font-size: 12pt;
+  font-weight: 700;
+}
+
+.doc.doc--ats .section__head--ats .section__line{
+  display: none;
+}
+
+.doc.doc--ats .body,
+.doc.doc--ats .list{
+  font-size: 11pt;
+  color: #000;
+  line-height: 1.4;
+}
+
+.doc.doc--ats .list li::marker{
+  color: #000;
+}
+
+.doc.doc--ats .card{
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.doc.doc--ats .ats-list-wrap .list{
+  margin-left: 18px;
+}
+
+.doc.doc--ats .chip{
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-weight: 500;
+}
+
+.doc.doc--ats .exp__head{
+  display: block;
+  grid-template-columns: none;
+  gap: 0;
+}
+
+.doc.doc--ats .exp__role{
+  font-size: 12pt;
+  font-weight: 700;
+}
+
+.doc.doc--ats .exp__meta{
+  color: #333;
+  font-size: 11pt;
+  text-align: left;
+  white-space: normal;
+  margin-top: 2px;
+}
+
+.doc.doc--ats .section--divider{
+  border-top: none;
+  padding-top: 0;
+  margin-top: 12px;
+}
+
+.doc.doc--ats .section.expBlock + .section.expBlock{
+  border-top: none;
 }
 
 /* ================= EXPERIENCE ================= */
