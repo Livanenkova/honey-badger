@@ -33,69 +33,134 @@
   </div>
   <input type="file" id="jsonFileInput" accept=".json" data-i18n-aria-label="aria.chooseJsonFile" style="display:none"/>
   <div class="toolbar__import">
-    <label class="toolbar__import-label" for="fJsonPaste" data-i18n="label.importJson">Import JSON</label>
+    <div class="toolbar__import-row">
+      <label class="toolbar__import-label" for="fJsonPaste" data-i18n="label.importJson">Import JSON</label>
+      <button id="applyJsonBtn" class="mini-btn" type="button" data-i18n="button.applyJson" data-i18n-title="hint.applyJson" title="Load the pasted JSON into the form.">Apply JSON</button>
+    </div>
     <textarea id="fJsonPaste" class="toolbar__import-area" data-i18n-placeholder="placeholder.pasteJson" aria-describedby="import-hint" aria-errormessage="jsonError" aria-invalid="false"></textarea>
-    <button id="applyJsonBtn" class="mini-btn" type="button" data-i18n="button.applyJson" data-i18n-title="hint.applyJson" title="Load the pasted JSON into the form.">Apply JSON</button>
   </div>
   <p id="import-hint" class="hint visually-hidden" data-i18n-aria-describedby="aria.importHint">Paste JSON then click Apply to load into the form.</p>
   <p id="jsonError" class="json-error" role="alert" aria-live="polite" aria-atomic="true" hidden></p>
 </header>
 
-<div class="app">
-
+<div class="app" id="appRoot">
+  <div class="app-tabs no-js-hide" role="tablist" aria-label="Form or Preview">
+    <button type="button" class="app-tab app-tab--form" role="tab" aria-selected="true" data-tab="form" id="tabForm" data-i18n="tabs.form">Form</button>
+    <button type="button" class="app-tab app-tab--preview" role="tab" aria-selected="false" data-tab="preview" id="tabPreview" data-i18n="tabs.preview">Preview</button>
+  </div>
   <aside class="panel" role="complementary" aria-label="CV form">
 
-    <div class="field">
+    <div class="field field--name">
       <label for="fName" data-i18n="label.name">Name</label>
-      <input id="fName" autocomplete="name"/>
+      <input id="fName" autocomplete="name" data-i18n-placeholder="placeholder.name" aria-describedby="fNameHint"/>
+      <p id="fNameHint" class="field-hint field-hint--validation" aria-live="polite"></p>
     </div>
 
     <div class="field">
       <label for="fHeadline" data-i18n="label.headline">Headline</label>
-      <input id="fHeadline"/>
+      <input id="fHeadline" data-i18n-placeholder="placeholder.headline"/>
     </div>
 
     <div class="field">
       <label for="fContacts" data-i18n="label.contacts">Contacts (one per line)</label>
-      <textarea id="fContacts"></textarea>
+      <textarea id="fContacts" data-i18n-placeholder="placeholder.contacts"></textarea>
     </div>
 
-    <div class="field">
-      <label for="fProfile" data-i18n="label.profile">Profile</label>
-      <textarea id="fProfile"></textarea>
+    <div class="field field--with-title-edit">
+      <div class="field__label-row">
+        <label for="fProfile" data-i18n="label.profile">Profile</label>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="profile" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+      </div>
+      <input type="text" id="fProfileTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Profile"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <textarea id="fProfile" data-i18n-placeholder="placeholder.profile"></textarea>
     </div>
 
-    <div class="field">
-      <label for="fImpact" data-i18n="label.keyImpact">Key Impact (one per line)</label>
-      <textarea id="fImpact"></textarea>
+    <div class="field field--with-title-edit">
+      <div class="field__label-row">
+        <label for="fImpact" data-i18n="label.keyImpact">Key Impact (one per line)</label>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="keyImpact" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+      </div>
+      <input type="text" id="fKeyImpactTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Key Impact"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <textarea id="fImpact" data-i18n-placeholder="placeholder.keyImpact"></textarea>
     </div>
 
-    <div class="field">
-      <label for="fChips" data-i18n="label.coreCompetencies">Core Competencies (one per line)</label>
-      <textarea id="fChips"></textarea>
+    <div class="field field--with-title-edit">
+      <div class="field__label-row">
+        <label for="fChips" data-i18n="label.coreCompetencies">Core Competencies (one per line)</label>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="coreCompetencies" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+      </div>
+      <input type="text" id="fCoreCompetenciesTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Core Competencies"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <textarea id="fChips" data-i18n-placeholder="placeholder.coreCompetencies"></textarea>
+    </div>
+
+    <div class="field field--with-title-edit">
+      <div class="field__label-row">
+        <label for="fLanguages" data-i18n="label.languages">Languages (one per line)</label>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="languages" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+      </div>
+      <input type="text" id="fLanguagesTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Languages"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <textarea id="fLanguages" data-i18n-placeholder="placeholder.languages"></textarea>
     </div>
 
     <hr/>
 
-    <strong id="exp-heading" data-i18n="label.experience">Experience</strong>
-    <button id="addExpBtn" class="mini-btn" type="button" aria-describedby="exp-heading" data-i18n="button.addExp" data-i18n-title="hint.addExp" title="Add a new job or experience entry.">+ Add</button>
-    <div id="expList"></div>
+    <div class="field field--exp-heading">
+      <div class="field__label-row">
+        <strong id="exp-heading" data-i18n="label.experience">Experience</strong>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="experience" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+        <button id="addExpBtn" class="mini-btn" type="button" aria-describedby="exp-heading" data-i18n="button.addExp" data-i18n-title="hint.addExp" title="Add a new job or experience entry.">+ Add</button>
+      </div>
+      <input type="text" id="fExpTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Experience"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <div id="expList"></div>
+    </div>
 
     <hr/>
 
-    <div class="field">
-      <label for="fEdu" data-i18n="label.education">Education (one per line)</label>
-      <textarea id="fEdu"></textarea>
+    <div class="field field--with-title-edit">
+      <div class="field__label-row">
+        <label for="fEdu" data-i18n="label.education">Education (one per line)</label>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="education" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+      </div>
+      <input type="text" id="fEducationTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Education"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <textarea id="fEdu" data-i18n-placeholder="placeholder.education"></textarea>
     </div>
 
-    <div class="field">
-      <label for="fProjects" data-i18n="label.projects">Projects (one per line)</label>
-      <textarea id="fProjects"></textarea>
+    <div class="field field--with-title-edit">
+      <div class="field__label-row">
+        <label for="fProjects" data-i18n="label.projects">Projects (one per line)</label>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="projects" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+      </div>
+      <input type="text" id="fProjectsTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Projects"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <textarea id="fProjects" data-i18n-placeholder="placeholder.projects"></textarea>
     </div>
 
   </aside>
 
-  <main id="cvRoot" class="doc" role="region" aria-label="CV preview"></main>
+  <div class="app-preview-wrap">
+    <p class="preview-hint hint" id="previewHint" data-i18n="hintPreview">Preview updates when you click Generate.</p>
+    <main id="cvRoot" class="doc" role="region" aria-label="CV preview"></main>
+  </div>
 
 </div>
 

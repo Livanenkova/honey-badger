@@ -42,12 +42,67 @@
     const fProfile = document.getElementById("fProfile");
     const fImpact = document.getElementById("fImpact");
     const fChips = document.getElementById("fChips");
+    const fLanguages = document.getElementById("fLanguages");
+    const fProfileTitle = document.getElementById("fProfileTitle");
+    const fKeyImpactTitle = document.getElementById("fKeyImpactTitle");
+    const fCoreCompetenciesTitle = document.getElementById("fCoreCompetenciesTitle");
     const fExpTitle = document.getElementById("fExpTitle");
+    const fEducationTitle = document.getElementById("fEducationTitle");
+    const fProjectsTitle = document.getElementById("fProjectsTitle");
+    const fLanguagesTitle = document.getElementById("fLanguagesTitle");
     const fEdu = document.getElementById("fEdu");
     const fProjects = document.getElementById("fProjects");
     const elAddExp = document.getElementById("addExpBtn");
     const elExpList = document.getElementById("expList");
     const elJsonError = document.getElementById("jsonError");
+    const elNameHint = document.getElementById("fNameHint");
+
+    let formDirty = false;
+    function setDirty() {
+      formDirty = true;
+    }
+    function clearDirty() {
+      formDirty = false;
+    }
+
+    function updateNameHint() {
+      if (!elNameHint) return;
+      const name = (fName && fName.value || "").trim();
+      if (name.length === 0) {
+        elNameHint.textContent = typeof window.t === "function" ? window.t("validation.nameEmpty") : "";
+        elNameHint.removeAttribute("hidden");
+      } else {
+        elNameHint.textContent = "";
+        elNameHint.setAttribute("hidden", "");
+      }
+    }
+
+    function defaultPdfFilename() {
+      const raw = (fName && fName.value || "").trim();
+      const safe = raw.replace(/\s+/g, "_").replace(/[^\w\u00C0-\u024F\-_.]/g, "");
+      return (safe || "CV") + ".pdf";
+    }
+
+    const SECTION_TITLE_FIELDS = [
+      [fProfileTitle, "profile", "profileTitle"],
+      [fKeyImpactTitle, "keyImpact", "keyImpactTitle"],
+      [fCoreCompetenciesTitle, "coreCompetencies", "coreCompetenciesTitle"],
+      [fExpTitle, "experience", "experienceTitle"],
+      [fEducationTitle, "education", "educationTitle"],
+      [fProjectsTitle, "projects", "projectsTitle"],
+      [fLanguagesTitle, "languages", "languagesTitle"],
+    ];
+
+    function setSectionTitleDefaults() {
+      SECTION_TITLE_FIELDS.forEach(([el, key]) => {
+        if (el && typeof window.t === "function") el.value = window.t("section." + key);
+      });
+    }
+
+    function getSectionTitle(el, key) {
+      const v = el && el.value.trim();
+      return v || (typeof window.t === "function" ? window.t("section." + key) : "");
+    }
 
     function showJsonError(message) {
       if (elJsonError) {
@@ -95,6 +150,21 @@
       .split("\n")
       .map((x) => x.trim())
       .filter(Boolean);
+  }
+
+  const BULLET = "• ";
+  function linesFromBulletList(t) {
+    return String(t || "")
+      .split("\n")
+      .map((l) => l.replace(/^[•·]\s*/, "").trim())
+      .filter(Boolean);
+  }
+  function formatBulletList(arr) {
+    return (arr || [])
+      .map((s) => (typeof s === "string" ? s : s?.text || "").trim())
+      .filter(Boolean)
+      .map((s) => BULLET + s)
+      .join("\n");
   }
 
   function downloadText(filename, text) {
@@ -154,8 +224,17 @@
 
   // ---------- EXPERIENCE EDITOR ----------
   function expTemplate(item, idx) {
+    const t = (key) => (typeof window.t === "function" ? window.t(key) : "Drag to reorder");
+    const dragLabel = t("label.dragToReorder");
+    const dragAria = t("aria.dragToReorder");
     return `
-      <div class="expItem" data-idx="${idx}">
+      <div class="expItem" data-idx="${idx}" draggable="false">
+        <div class="expItem__drag-row">
+          <span class="expItem-dragHandle" draggable="true" role="button" aria-label="${esc(dragAria)}" title="${esc(dragAria)}" tabindex="0">
+            <span class="expItem-dragHandle__icon" aria-hidden="true">⋮⋮</span>
+            <span class="expItem-dragHandle__label">${esc(dragLabel)}</span>
+          </span>
+        </div>
         <div class="row">
           <div class="field">
             <label>${esc(window.t("label.company"))}</label>
@@ -179,7 +258,7 @@
 
         <div class="field">
           <label>${esc(window.t("label.bullets"))}</label>
-          <textarea class="xBullets">${esc(item.bullets.join("\n"))}</textarea>
+          <textarea class="xBullets">${esc(formatBulletList(item.bullets))}</textarea>
         </div>
 
         <div class="expActions">
@@ -211,11 +290,73 @@
       title: box.querySelector(".xTitle").value.trim(),
       meta: box.querySelector(".xMeta").value.trim(),
       summary: box.querySelector(".xSummary").value.trim(),
-      bullets: lines(box.querySelector(".xBullets").value),
+      bullets: linesFromBulletList(box.querySelector(".xBullets").value),
     }));
   }
 
   elExpList.addEventListener("input", debounce(syncFromEditor, INPUT_DEBOUNCE_MS));
+
+  elExpList.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const ta = e.target;
+    if (!ta.matches || !ta.matches("textarea.xBullets")) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const val = ta.value;
+    const insert = "\n" + BULLET;
+    ta.value = val.slice(0, start) + insert + val.slice(end);
+    ta.selectionStart = ta.selectionEnd = start + insert.length;
+    e.preventDefault();
+  });
+  elExpList.addEventListener("focusout", (e) => {
+    const ta = e.target;
+    if (!ta.matches || !ta.matches("textarea.xBullets")) return;
+    const items = linesFromBulletList(ta.value);
+    if (items.length) ta.value = formatBulletList(items);
+  });
+  (function initExpDragDrop() {
+    elExpList.addEventListener("dragstart", (e) => {
+      const handle = e.target.closest(".expItem-dragHandle");
+      if (!handle) return;
+      const box = handle.closest(".expItem");
+      if (!box) return;
+      e.dataTransfer.setData("text/plain", String(box.dataset.idx));
+      e.dataTransfer.effectAllowed = "move";
+      handle.closest(".expItem").classList.add("expItem--dragging");
+    });
+    elExpList.addEventListener("dragend", () => {
+      document.querySelectorAll(".expItem--dragging").forEach((el) => el.classList.remove("expItem--dragging"));
+      elExpList.querySelectorAll(".expItem--drop-target").forEach((el) => el.classList.remove("expItem--drop-target"));
+    });
+    elExpList.addEventListener("dragover", (e) => {
+      const over = e.target.closest(".expItem");
+      if (over) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        elExpList.querySelectorAll(".expItem--drop-target").forEach((el) => el.classList.remove("expItem--drop-target"));
+        over.classList.add("expItem--drop-target");
+      }
+    });
+    elExpList.addEventListener("dragleave", (e) => {
+      if (!elExpList.contains(e.relatedTarget)) {
+        elExpList.querySelectorAll(".expItem--drop-target").forEach((el) => el.classList.remove("expItem--drop-target"));
+      }
+    });
+    elExpList.addEventListener("drop", (e) => {
+      e.preventDefault();
+      elExpList.querySelectorAll(".expItem--drop-target").forEach((el) => el.classList.remove("expItem--drop-target"));
+      const targetItem = e.target.closest(".expItem");
+      if (!targetItem) return;
+      const srcIdx = Number(e.dataTransfer.getData("text/plain"));
+      const tgtIdx = Number(targetItem.dataset.idx);
+      if (Number.isNaN(srcIdx) || Number.isNaN(tgtIdx) || srcIdx === tgtIdx) return;
+      syncFromEditor();
+      const moved = expItems.splice(srcIdx, 1)[0];
+      expItems.splice(tgtIdx, 0, moved);
+      renderExpEditor();
+      renderDoc(buildInternalFromForm());
+    });
+  })();
 
   elExpList.addEventListener("click", (e) => {
     const box = e.target.closest(".expItem");
@@ -223,16 +364,19 @@
     const idx = Number(box.dataset.idx);
 
     if (e.target.classList.contains("xDel")) {
+      syncFromEditor();
       expItems.splice(idx, 1);
       renderExpEditor();
       return;
     }
     if (e.target.classList.contains("xUp") && idx > 0) {
+      syncFromEditor();
       [expItems[idx - 1], expItems[idx]] = [expItems[idx], expItems[idx - 1]];
       renderExpEditor();
       return;
     }
     if (e.target.classList.contains("xDown") && idx < expItems.length - 1) {
+      syncFromEditor();
       [expItems[idx + 1], expItems[idx]] = [expItems[idx], expItems[idx + 1]];
       renderExpEditor();
       return;
@@ -249,6 +393,42 @@
     });
     renderExpEditor();
   });
+
+  function onBulletListEnter(ta) {
+    if (!ta) return;
+    ta.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const val = ta.value;
+      const insert = "\n" + BULLET;
+      ta.value = val.slice(0, start) + insert + val.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + insert.length;
+      e.preventDefault();
+    });
+    ta.addEventListener("blur", () => {
+      const items = linesFromBulletList(ta.value);
+      if (items.length) ta.value = formatBulletList(items);
+    });
+  }
+  onBulletListEnter(fImpact);
+  onBulletListEnter(fChips);
+  onBulletListEnter(fLanguages);
+
+  (function initExpandableFields() {
+    const EXPANDED_HEIGHT = 180;
+    const COLLAPSED_HEIGHT = 70;
+    const panel = document.querySelector(".panel");
+    if (!panel) return;
+    panel.addEventListener("focusin", (e) => {
+      const ta = e.target;
+      if (ta.matches && ta.matches(".field textarea")) ta.style.height = EXPANDED_HEIGHT + "px";
+    });
+    panel.addEventListener("focusout", (e) => {
+      const ta = e.target;
+      if (ta.matches && ta.matches(".field textarea")) ta.style.height = COLLAPSED_HEIGHT + "px";
+    });
+  })();
 
   // ---------- INTERNAL DATA (flat JSON: no page1/page2) ----------
   function buildInternalFromForm() {
@@ -268,9 +448,12 @@
       headline: fHeadline.value.trim(),
       contacts: lines(fContacts.value),
       profile: { all: fProfile.value.trim() },
-      keyImpact: lines(fImpact.value).map((t) => ({ text: t, tags: ["all"] })),
-      coreCompetencies: lines(fChips.value).map((t) => ({ text: t, tags: ["all"] })),
-      experienceTitle: fExpTitle?.value?.trim() || window.t("section.experience"),
+      keyImpact: linesFromBulletList(fImpact.value).map((t) => ({ text: t, tags: ["all"] })),
+      coreCompetencies: linesFromBulletList(fChips.value).map((t) => ({ text: t, tags: ["all"] })),
+      languages: linesFromBulletList(fLanguages?.value || "").map((t) => ({ text: t, tags: ["all"] })),
+      ...Object.fromEntries(
+        SECTION_TITLE_FIELDS.map(([el, key, dataKey]) => [dataKey, getSectionTitle(el, key)])
+      ),
       experience,
       education,
       projects,
@@ -288,10 +471,15 @@
     }));
     const edu = d.education || [];
     const proj = d.projects || [];
+    const lang = (d.languages || []).map((x) => (typeof x === "string" ? x : x.text));
+    const eduTitle = (d.educationTitle && d.educationTitle.trim()) || (typeof window.t === "function" ? window.t("section.education") : "EDUCATION");
+    const projTitle = (d.projectsTitle && d.projectsTitle.trim()) || (typeof window.t === "function" ? window.t("section.projects") : "PROJECTS");
+    const langTitle = (d.languagesTitle && d.languagesTitle.trim()) || (typeof window.t === "function" ? window.t("section.languages") : "LANGUAGES");
     return [
       ...expBlocks,
-      ...(edu.length ? [{ type: "section", title: window.t("section.education"), bullets: edu.map((t) => ({ text: t, tags: ["all"] })) }] : []),
-      ...(proj.length ? [{ type: "section", title: window.t("section.projects"), bullets: proj.map((t) => ({ text: t, tags: ["all"] })) }] : []),
+      ...(edu.length ? [{ type: "section", title: eduTitle, bullets: edu.map((t) => ({ text: t, tags: ["all"] })) }] : []),
+      ...(proj.length ? [{ type: "section", title: projTitle, bullets: proj.map((t) => ({ text: t, tags: ["all"] })) }] : []),
+      ...(lang.length ? [{ type: "languages", title: langTitle, items: lang }] : []),
     ];
   }
 
@@ -301,6 +489,7 @@
   }
 
   function balancePages() {
+    elRoot.classList.remove("doc--two-pages", "doc--multi-pages");
     const pages = elRoot.querySelectorAll(".page");
     const p1 = pages[0];
     const p2 = pages[1];
@@ -333,6 +522,7 @@
     ensureNoPageOverflows();
     const pageCount = elRoot.querySelectorAll(".page").length;
     elRoot.classList.toggle("doc--two-pages", pageCount === 2);
+    elRoot.classList.toggle("doc--multi-pages", pageCount >= 3);
   }
 
   function splitPage2IntoPage3() {
@@ -397,26 +587,14 @@
   }
 
   // ---------- RENDER ----------
-  function renderRole(role, withDivider) {
-    const bullets = (role.bullets || []).map((b) => b.text);
-    const summary = role.summary ? `<p class="body body--tight">${esc(role.summary)}</p>` : "";
-    return `
-      <article class="exp ${withDivider ? "exp--divider" : ""}">
-        <div class="exp__head">
-          <div class="exp__role">${esc([role.company, role.title].filter(Boolean).join(" - "))}</div>
-          <div class="exp__meta">${esc(role.meta || "")}</div>
-        </div>
-        ${summary}
-        ${listHtml(bullets)}
-      </article>
-    `;
-  }
-
   function renderDoc(d) {
     const impacts = (d.keyImpact || []).map((x) => x.text);
     const chips = (d.coreCompetencies || []).map((x) => x.text);
 
-    const page1ExpTitle = d.experienceTitle || window.t("section.experience");
+    const profileTitle = (d.profileTitle && d.profileTitle.trim()) || (typeof window.t === "function" ? window.t("section.profile") : "PROFILE");
+    const keyImpactTitle = (d.keyImpactTitle && d.keyImpactTitle.trim()) || (typeof window.t === "function" ? window.t("section.keyImpact") : "KEY IMPACT");
+    const coreCompetenciesTitle = (d.coreCompetenciesTitle && d.coreCompetenciesTitle.trim()) || (typeof window.t === "function" ? window.t("section.coreCompetencies") : "CORE COMPETENCIES");
+    const page1ExpTitle = (d.experienceTitle && d.experienceTitle.trim()) || (typeof window.t === "function" ? window.t("section.experience") : "PROFESSIONAL EXPERIENCE");
     const blocks = dataToBlocks(d);
     const hasPage2 = blocks.length > 0;
 
@@ -448,7 +626,7 @@
         </section>
 
         <section class="section">
-          ${sectionHead(window.t("section.profile"))}
+          ${sectionHead(profileTitle)}
           <p class="body">${esc(d.profile?.all || "")}</p>
         </section>
 
@@ -456,7 +634,7 @@
           impacts.length
             ? `
           <section class="section">
-            ${sectionHead(window.t("section.keyImpact"))}
+            ${sectionHead(keyImpactTitle)}
             <div class="card">${listHtml(impacts)}</div>
           </section>
         `
@@ -467,7 +645,7 @@
           chips.length
             ? `
           <section class="section">
-            ${sectionHead(window.t("section.coreCompetencies"))}
+            ${sectionHead(coreCompetenciesTitle)}
             <div class="chips">${chips.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
           </section>
         `
@@ -485,7 +663,7 @@
       <section class="page">
         ${blocks
           .map((b, i) => {
-            const bullets = normalizeTextBullets(b.bullets);
+            const bullets = normalizeTextBullets(b.bullets || []);
             const subtitle = b.subtitle ? `<p class="body body--tight">${esc(b.subtitle)}</p>` : "";
 
             const isExperience = b.type === "experience";
@@ -496,8 +674,15 @@
               prev &&
               prev.type === "experience";
 
+            if (b.type === "languages" && Array.isArray(b.items)) {
+              return `
+                <section class="section">
+                  ${sectionHead(b.title || "", "grey")}
+                  <div class="chips">${(b.items || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+                </section>
+              `;
+            }
             if (b.type === "section") {
-              // No divider for EDUCATION / PROJECTS etc.
               return `
                 <section class="section">
                   ${sectionHead(b.title || "", "grey")}
@@ -523,10 +708,12 @@
     `;
 
     const pageBreakHtml = '<div class="page-break-preview" aria-hidden="true"><span>— Page 2 —</span></div>';
+    elRoot.classList.remove("doc--two-pages", "doc--multi-pages");
     elRoot.innerHTML = page1 + (hasPage2 ? pageBreakHtml + page2 : "");
-    elRoot.classList.remove("doc--two-pages");
     if (hasPage2) {
-      requestAnimationFrame(() => balancePages());
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => balancePages());
+      });
     }
   }
 
@@ -587,6 +774,13 @@
       bullets: r.bullets,
     }));
 
+    const langRaw = incoming?.languages || basics?.languages || [];
+    const languages = Array.isArray(langRaw)
+      ? langRaw.map((x) =>
+          typeof x === "string" ? { text: x, tags: ["all"] } : { text: [x.language, x.fluency].filter(Boolean).join(" — ") || "", tags: ["all"] }
+        )
+      : [];
+
     return {
       schemaVersion: "cv.v1",
       name: basics.fullName || "",
@@ -595,6 +789,7 @@
       profile: { all: incoming?.summary || "" },
       keyImpact: [],
       coreCompetencies: skills.map((t) => ({ text: t, tags: ["all"] })),
+      languages,
       experienceTitle: window.t("section.experience"),
       experience,
       education: eduLines,
@@ -617,13 +812,20 @@
     fContacts.value = (normalized.contacts || []).join("\n");
     fProfile.value = normalized.profile?.all || "";
 
-    fImpact.value = normalizeTextBullets(normalized.keyImpact).join("\n");
-    fChips.value = normalizeTextBullets(normalized.coreCompetencies).join("\n");
-
-    if (fExpTitle) {
-      fExpTitle.value =
-        normalized.experienceTitle ?? normalized.pages?.page1?.experienceTitle ?? window.t("section.experience");
+    fImpact.value = formatBulletList(normalizeTextBullets(normalized.keyImpact));
+    fChips.value = formatBulletList(normalizeTextBullets(normalized.coreCompetencies));
+    if (fLanguages) {
+      const lang = normalized.languages;
+      fLanguages.value = formatBulletList(Array.isArray(lang) ? lang : []);
     }
+
+    const def = (key) => (typeof window.t === "function" ? window.t("section." + key) : "");
+    SECTION_TITLE_FIELDS.forEach(([el, key, dataKey]) => {
+      if (!el) return;
+      let val = normalized[dataKey];
+      if (dataKey === "experienceTitle") val = val ?? normalized.pages?.page1?.experienceTitle;
+      el.value = val ?? def(key);
+    });
 
     expItems = [];
     fEdu.value = "";
@@ -676,7 +878,8 @@
 
     renderExpEditor();
     renderDoc(buildInternalFromForm());
-
+    clearDirty();
+    updateNameHint();
     if (fJsonPaste) fJsonPaste.value = "";
     return { ok: true };
   }
@@ -694,7 +897,7 @@
 
   function openExportPdfModal() {
     if (!elExportPdfModal || !elExportPdfFilename) return;
-    elExportPdfFilename.value = "CV.pdf";
+    elExportPdfFilename.value = defaultPdfFilename();
     elExportPdfModal.removeAttribute("hidden");
     elExportPdfFilename.focus();
   }
@@ -731,6 +934,19 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    return Promise.resolve();
+  }
+
+  function removeEmptyPages(rootEl) {
+    const pages = rootEl.querySelectorAll(".page");
+    pages.forEach((p) => {
+      if (p.classList.contains("page--empty") || p.children.length === 0) {
+        const prev = p.previousElementSibling;
+        if (prev && prev.classList.contains("page-break-preview")) prev.remove();
+        p.remove();
+      }
+    });
+    return rootEl.querySelectorAll(".page");
   }
 
   function runPdfExport(filename) {
@@ -757,18 +973,7 @@
       if (el.parentElement) el.parentElement.scrollTop = 0;
 
       requestAnimationFrame(() => {
-        const pages = el.querySelectorAll(".page");
-        pages.forEach((p) => {
-          const empty =
-            p.classList.contains("page--empty") || p.children.length === 0;
-          if (empty) {
-            const prev = p.previousElementSibling;
-            if (prev && prev.classList.contains("page-break-preview")) prev.remove();
-            p.remove();
-          }
-        });
-
-        const remainingPages = el.querySelectorAll(".page");
+        const remainingPages = removeEmptyPages(el);
         const JsPDF = (typeof jspdf !== "undefined" && jspdf.jsPDF) || (typeof jsPDF !== "undefined" && jsPDF) || null;
 
         if (!JsPDF || remainingPages.length === 0) {
@@ -830,15 +1035,7 @@
       };
 
       requestAnimationFrame(() => {
-        const pages = el.querySelectorAll(".page");
-        pages.forEach((p) => {
-          if (p.classList.contains("page--empty") || p.children.length === 0) {
-            const prev = p.previousElementSibling;
-            if (prev && prev.classList.contains("page-break-preview")) prev.remove();
-            p.remove();
-          }
-        });
-        const remainingPages = el.querySelectorAll(".page");
+        const remainingPages = removeEmptyPages(el);
         opt.pagebreak = remainingPages.length > 1 ? { mode: "css", before: ".page-break-preview + .page" } : {};
         html2pdf()
           .set(opt)
@@ -890,6 +1087,7 @@
     );
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
     if (e.shiftKey) {
       if (document.activeElement === first) {
         e.preventDefault();
@@ -910,6 +1108,7 @@
     syncFromEditor();
     const data = buildInternalFromForm();
     downloadText("resume.internal.json", JSON.stringify(data, null, 2));
+    clearDirty();
   });
 
   elUploadJson.addEventListener("click", () => elJsonFileInput.click());
@@ -964,20 +1163,88 @@
 
   elReset.addEventListener("click", () => {
     if (!confirm(window.t("confirm.reset"))) return;
+    clearDirty();
     fName.value = "";
     fHeadline.value = "";
     fContacts.value = "";
     fProfile.value = "";
     fImpact.value = "";
     fChips.value = "";
-    if (fExpTitle) fExpTitle.value = window.t("section.experience");
+    if (fLanguages) fLanguages.value = "";
+    setSectionTitleDefaults();
     fEdu.value = "";
     fProjects.value = "";
     if (fJsonPaste) fJsonPaste.value = "";
     expItems = [];
     renderExpEditor();
     renderDoc(buildInternalFromForm());
+    updateNameHint();
   });
+
+  const panel = document.querySelector(".panel");
+  if (panel) {
+    panel.addEventListener("input", setDirty);
+    panel.addEventListener("change", setDirty);
+    function setTitleFieldVisible(input, visible) {
+      if (!input) return;
+      input.hidden = !visible;
+      let next = input.nextElementSibling;
+      if (next && next.classList.contains("section-title-done-btn")) {
+        next.hidden = !visible;
+        if (visible) {
+          const label = next.querySelector(".section-title-done-btn__label");
+          if (label) label.textContent = (typeof window.t === "function" ? window.t("button.done") : "Save");
+          if (typeof window.t === "function") next.setAttribute("title", window.t("aria.doneLabel"));
+        }
+        next = next.nextElementSibling;
+      }
+      while (next && next.classList.contains("section-title-inline-hint")) {
+        next.hidden = !visible;
+        next = next.nextElementSibling;
+      }
+    }
+    panel.addEventListener("click", (e) => {
+      const btn = e.target.closest(".edit-section-title-btn");
+      if (!btn) return;
+      const field = btn.closest(".field");
+      const input = field && field.querySelector(".section-title-inline");
+      if (!input) return;
+      if (!input.hidden) {
+        input.blur();
+        return;
+      }
+      setTitleFieldVisible(input, true);
+      input.focus();
+    });
+    panel.addEventListener("focusout", (e) => {
+      const input = e.target;
+      if (input.classList && input.classList.contains("section-title-inline")) {
+        setTitleFieldVisible(input, false);
+      }
+    });
+    panel.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const input = e.target;
+      if (input.classList && input.classList.contains("section-title-inline")) {
+        e.preventDefault();
+        input.blur();
+      }
+    });
+    panel.addEventListener("click", (e) => {
+      const doneBtn = e.target.closest(".section-title-done-btn");
+      if (!doneBtn || doneBtn.hidden) return;
+      const field = doneBtn.closest(".field");
+      const input = field && field.querySelector(".section-title-inline");
+      if (input) input.blur();
+    });
+  }
+  window.addEventListener("beforeunload", (e) => {
+    if (formDirty) {
+      e.preventDefault();
+    }
+  });
+
+  if (fName) fName.addEventListener("input", updateNameHint);
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
@@ -996,6 +1263,25 @@
   if (typeof window.getLocale === "function") {
     document.documentElement.setAttribute("lang", window.getLocale());
   }
+  setSectionTitleDefaults();
+  updateNameHint();
+
+  (function initMobileTabs() {
+    const app = document.getElementById("appRoot");
+    const tabForm = document.getElementById("tabForm");
+    const tabPreview = document.getElementById("tabPreview");
+    if (!app || !tabForm || !tabPreview) return;
+    tabForm.addEventListener("click", () => {
+      app.classList.remove("app--show-preview");
+      tabForm.setAttribute("aria-selected", "true");
+      tabPreview.setAttribute("aria-selected", "false");
+    });
+    tabPreview.addEventListener("click", () => {
+      app.classList.add("app--show-preview");
+      tabForm.setAttribute("aria-selected", "false");
+      tabPreview.setAttribute("aria-selected", "true");
+    });
+  })();
 
   (function initFastTooltips() {
     var tooltipEl = null;
@@ -1052,6 +1338,7 @@
       if (window.setLocale(code)) {
         document.documentElement.setAttribute("lang", code);
         if (typeof window.applyLocale === "function") window.applyLocale();
+        setSectionTitleDefaults();
         renderExpEditor();
         renderDoc(buildInternalFromForm());
       }
