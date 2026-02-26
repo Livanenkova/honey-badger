@@ -569,6 +569,30 @@ select:focus-visible{
   justify-content: flex-end;
   gap: 8px;
 }
+.modal__actions--wrap{ flex-wrap: wrap; }
+.mini-btn--secondary{
+  background: transparent;
+  color: var(--muted);
+}
+.mini-btn--secondary:hover{ color: var(--text); }
+.mini-btn--ats{
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.mini-btn--ats:hover{ background: #234a9e; color: #fff; }
+.mini-btn--design{
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+.mini-btn--design:hover{ background: #020617; color: #fff; }
+.mini-btn--ats{
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.mini-btn--ats:hover{ background: #234a9e; color: #fff; }
 
 @media print{
   .modal{ display: none !important; }
@@ -595,12 +619,8 @@ select:focus-visible{
   max-height: var(--page-h);
   overflow: hidden;
 }
-/* Только при двух страницах вторая — длинная (без ограничения высоты) */
-.doc.doc--two-pages .page:last-child{
-  max-height: none;
-  overflow: visible;
-}
-/* При 3+ страницах все страницы с одинаковой высотой и отступами (перенос на 3-ю и далее) */
+/* Все страницы одной высоты; при переполнении создаётся 3-я (и далее) с теми же отступами */
+.doc.doc--two-pages .page,
 .doc.doc--multi-pages .page{
   max-height: var(--page-h);
   overflow: hidden;
@@ -674,9 +694,21 @@ select:focus-visible{
   min-height: 1122px;
   box-sizing: border-box;
   overflow: hidden;
+  padding: var(--pad-y) var(--pad-x);
+  padding-bottom: var(--page-margin-bottom);
+}
+/* В экспорте все страницы фиксированной высоты (в т.ч. последняя) */
+.doc.pdf-export .page:last-child{
+  max-height: 1122px;
+  min-height: 1122px;
+  height: 1122px;
+  overflow: hidden;
 }
 .doc.pdf-export .page-break-preview + .page{
   padding-top: var(--page-margin-top-continued);
+  padding-left: var(--pad-x);
+  padding-right: var(--pad-x);
+  padding-bottom: var(--page-margin-bottom);
 }
 
 /* ================= HEADER ================= */
@@ -968,17 +1000,23 @@ select:focus-visible{
     padding: 0;
   }
 
+  /* Печатный вид максимально повторяет экранный шаблон:
+     та же ширина и внутренние отступы, но без тени. */
   .page{
     box-shadow: none;
-    margin: 0;
-    width: auto;
-    min-height: auto;
-    /* Use @page margins for consistent top padding on every printed page */
-    padding: 0;
-
+    width: var(--page-w);
+    margin: 0 auto;
+    min-height: var(--page-h);
+    padding: var(--pad-y) var(--pad-x);
+    padding-bottom: var(--page-margin-bottom);
     /* no forced breaks by default */
     break-after: auto;
     page-break-after: auto;
+  }
+
+  /* В печати не показываем разделители «— Page 2 —» */
+  .page-break-preview{
+    display: none !important;
   }
 
   /* If a single .page gets split by the browser, @page margin still applies */

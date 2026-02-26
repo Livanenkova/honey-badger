@@ -103,9 +103,17 @@
       },
       exportPdf: {
         title: "Save PDF",
+        textLayerHint: "Recommended: opens print dialog. Choose «Save as PDF». Text will be copyable and ATS-friendly.",
+        printTipTitle: "Before saving to PDF:",
+        printBtnLabel: "Save as PDF",
+        printTip: "In print settings: disable «Headers and footers» (no URL/date in PDF). Enable «Background graphics» to keep blue headings and design.",
         filenameLabel: "File name",
         filenameHint: ".pdf will be added if needed.",
-        save: "Save",
+        save: "Save (print → PDF)",
+        saveServer: "Download default PDF",
+        saveDesign: "Download design PDF",
+        saveAts: "Download ATS PDF",
+        saveImage: "Download as image",
         cancel: "Cancel",
       },
       template: {
@@ -119,6 +127,8 @@
       },
       success: {
         jsonApplied: "JSON applied. Form updated.",
+        previewUpdated: "Preview updated.",
+        draftRestored: "Draft restored.",
       },
       hint: {
         generate: "Update the CV preview with current form data.",
@@ -228,9 +238,17 @@
       },
       exportPdf: {
         title: "Сохранить PDF",
+        textLayerHint: "Рекомендуется: откроется диалог печати. Выберите «Сохранить как PDF». Текст будет копироваться, подходит для ATS.",
+        printTipTitle: "Перед сохранением в PDF:",
+        printBtnLabel: "Сохранить как PDF",
+        printTip: "В настройках печати: отключите «Колонтитулы» (чтобы в PDF не было адреса и даты). Включите «Фоновые рисунки» — тогда сохранятся синие заголовки и дизайн.",
         filenameLabel: "Имя файла",
         filenameHint: "Расширение .pdf будет добавлено при необходимости.",
-        save: "Сохранить",
+        save: "Сохранить (печать → PDF)",
+        saveServer: "Скачать дефолтное PDF",
+        saveDesign: "Скачать дизайн-PDF",
+        saveAts: "Скачать ATS PDF",
+        saveImage: "Скачать как картинку",
         cancel: "Отмена",
       },
       template: {
@@ -244,6 +262,8 @@
       },
       success: {
         jsonApplied: "JSON применён. Форма обновлена.",
+        previewUpdated: "Превью обновлено.",
+        draftRestored: "Черновик восстановлен.",
       },
       hint: {
         generate: "Обновить превью резюме по данным формы.",

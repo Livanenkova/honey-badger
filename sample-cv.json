@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "cv.v1",
+  "name": "Имя Фамилия",
+  "headline": "Content Manager · Technical Writer · Process Automation",
+  "contacts": [
+    "Saint Petersburg, Russia",
+    "email@example.com",
+    "https://linkedin.com/in/example",
+    "https://github.com/example"
+  ],
+  "profile": {
+    "all": "Опыт в контент-менеджменте, стандартизации и автоматизации редакционных процессов. Фокус на качестве контента, снижении рутины и внедрении инструментов проверки и единообразия. Работа с большими объёмами публикаций (50–70 в день), кросс-функциональными командами и сжатыми сроками. Инициирую и веду проекты по автоматизации: от сбора требований до внедрения и поддержки инструментов."
+  },
+  "keyImpact": [
+    "Сократил ручной труд по форматированию и проверке ссылок на 30–40+ часов в месяц за счёт внутренних инструментов (Tardigrade, Axolotl Pro).",
+    "Внедрил пре-публикационную проверку ссылок и справочников, что устранило дубликаты и 404 после выхода материалов в прод.",
+    "Унифицировал правила оформления и проверки контента на 15+ сайтах, снизив количество правок после публикации."
+  ],
+  "coreCompetencies": [
+    "Content strategy",
+    "Technical writing",
+    "Process automation",
+    "WordPress",
+    "QA and link validation",
+    "Google Apps Script",
+    "Documentation standards",
+    "Cross-functional collaboration"
+  ],
+  "experienceTitle": "PROFESSIONAL EXPERIENCE",
+  "experience": [
+    {
+      "company": "Current Company Ltd",
+      "title": "Senior Content Manager",
+      "meta": "Jun 2021 - Present",
+      "summary": "Lead content operations, standardization, and tooling for multi-site editorial workflows.",
+      "bullets": [
+        { "text": "Own content quality and formatting standards across 15+ WordPress sites and 50–70 daily publications; define and document guidelines for editors and external contributors.", "tags": ["all"] },
+        { "text": "Designed and deployed internal tools (Tardigrade, Axolotl Pro) for content standardization and link QA; maintain and iterate based on editorial feedback.", "tags": ["all"] },
+        { "text": "Reduced manual formatting and link-checking workload by 30–40+ hours per month through automation and pre-publication checks.", "tags": ["all"] },
+        { "text": "Collaborate with product, engineering, and editorial teams to align processes, priorities, and release deadlines.", "tags": ["all"] },
+        { "text": "Conduct training sessions and create runbooks for new tools and workflows.", "tags": ["all"] }
+      ]
+    },
+    {
+      "company": "JUG Ru Group",
+      "title": "Content Manager",
+      "meta": "Mar 2021 - May 2021",
+      "summary": "Produced and coordinated content for IT events and educational initiatives.",
+      "bullets": [
+        { "text": "Coordinated content production for IT conferences and educational events; managed timelines and deliverables across multiple stakeholders.", "tags": ["all"] },
+        { "text": "Worked with internal teams and subject matter experts to prepare materials for publication; edited and structured technical content for diverse audiences.", "tags": ["all"] },
+        { "text": "Maintained content quality and delivery coordination under tight timelines; identified bottlenecks and proposed process improvements.", "tags": ["all"] }
+      ]
+    },
+    {
+      "company": "Example Corp",
+      "title": "Editor",
+      "meta": "2020 - 2021",
+      "summary": "Edited and published technical documentation and user-facing materials.",
+      "bullets": [
+        { "text": "Edited and standardized documentation across multiple products and channels; ensured consistency in tone, structure, and terminology.", "tags": ["all"] },
+        { "text": "Set up style guides and templates for consistent output and faster turnaround; trained writers on guidelines and best practices.", "tags": ["all"] },
+        { "text": "Participated in content audits and migration projects; mapped legacy content to new structure and updated references.", "tags": ["all"] }
+      ]
+    },
+    {
+      "company": "Earlier Employer",
+      "title": "Junior Editor",
+      "meta": "2018 - 2020",
+      "summary": "Supported editorial and content production for web and print.",
+      "bullets": [
+        { "text": "Prepared and proofread articles, newsletters, and marketing copy; checked facts and formatting against house style.", "tags": ["all"] },
+        { "text": "Assisted with CMS updates and content migration projects; coordinated with developers on technical constraints and workflows.", "tags": ["all"] }
+      ]
+    },
+    {
+      "company": "First Job Inc",
+      "title": "Content Intern",
+      "meta": "2017 - 2018",
+      "summary": "Entry-level role in content and editorial support.",
+      "bullets": [
+        { "text": "Supported senior editors with research, fact-checking, and draft edits for online and print publications.", "tags": ["all"] },
+        { "text": "Helped maintain editorial calendars and track content status across channels.", "tags": ["all"] }
+      ]
+    }
+  ],
+  "educationTitle": "EDUCATION",
+  "education": [
+    "HTML Academy - JavaScript, Advanced HTML/CSS",
+    "Web Development Program",
+    "Public Relations Specialist Degree - Saint Petersburg State Institute of Film and Television (formerly SPbGUKIT)",
+    "Additional courses: Technical Writing, Project Management Basics, Documentation for Developers"
+  ],
+  "projectsTitle": "SELECTED PRODUCT PROJECTS",
+  "projects": [
+    "Designed and deployed Tardigrade, an internal content standardization tool that eliminated recurring formatting errors across 15 WordPress sites (50-70 publications/day) and reduced repetitive manual workload by 30-40+ hours per month. The tool enforces structure and style rules before publication and is used daily by the editorial team.",
+    "Built and rolled out Axolotl Pro, a pre-publication link QA and reference automation tool that shifted outbound link validation from manual checking to automated verification, reducing editorial link-checking workload by 15-25 hours per month and preventing duplicate/404 issues before release. Integrated with existing CMS and editorial workflow.",
+    "Developed lightweight workflow automation (Google Docs script + CMS improvements) to automate recurring formatting and publishing steps, saving ~2 hours daily in content operations. Scripts handle batch updates, validation, and reporting.",
+    "Introduced style and structure checks into the editorial pipeline to catch inconsistencies before publication; documented rules and trained the team on using the new checks.",
+    "Led a pilot to unify terminology and reference formats across product documentation; created a shared glossary and updated templates for future content."
+  ],
+  "languagesTitle": "LANGUAGES",
+  "languages": [
+    { "text": "Russian — Native", "tags": ["all"] },
+    { "text": "English — Professional working", "tags": ["all"] }
+  ]
+}

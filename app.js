@@ -11,6 +11,10 @@
   const PDF_CANVAS_SCALE = 2;
   const PDF_JPEG_QUALITY = 0.98;
   const PDF_PAGE_DELAY_MS = 150;
+  /** Запас в px при балансировке страниц, чтобы контент не обрезался в PDF (шрифты/субпиксель). */
+  const PAGE_BALANCE_SAFETY_PX = 14;
+  const DRAFT_STORAGE_KEY = "honey-badger-draft";
+  const DRAFT_SAVE_DEBOUNCE_MS = 800;
 
   function debounce(fn, ms) {
     let t;
@@ -513,9 +517,9 @@
 
       const p1Rect = p1.getBoundingClientRect();
       const candRect = candidate.getBoundingClientRect();
-      const effectiveBottom = p1Rect.bottom - marginBottom;
+      const effectiveBottom = p1Rect.bottom - marginBottom - PAGE_BALANCE_SAFETY_PX;
 
-      if (candRect.bottom > effectiveBottom + 1) {
+      if (candRect.bottom > effectiveBottom) {
         p2.insertBefore(candidate, p2.firstElementChild);
         break;
       }
@@ -539,8 +543,8 @@
     const p2 = pages[1];
     if (!p2 || p2.classList.contains("page--empty")) return;
     const marginBottom = getPageBottomMarginPx(p2);
-    const maxContentHeight = p2.clientHeight - marginBottom;
-    if (p2.scrollHeight <= maxContentHeight + 1) return;
+    const maxContentHeight = p2.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX;
+    if (p2.scrollHeight <= maxContentHeight) return;
 
     const p3 = document.createElement("section");
     p3.className = "page";
@@ -549,7 +553,7 @@
     break3.setAttribute("aria-hidden", "true");
     break3.innerHTML = "<span>— Page 3 —</span>";
 
-    while (p2.children.length > 0 && p2.scrollHeight > p2.clientHeight - marginBottom + 1) {
+    while (p2.children.length > 0 && p2.scrollHeight > p2.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX) {
       const last = p2.lastElementChild;
       p3.insertBefore(last, p3.firstElementChild);
     }
@@ -570,8 +574,8 @@
       const last = pages[pages.length - 1];
       if (!last) break;
       const marginBottom = getPageBottomMarginPx(last);
-      const maxContentHeight = last.clientHeight - marginBottom;
-      if (last.scrollHeight <= maxContentHeight + 1) break;
+      const maxContentHeight = last.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX;
+      if (last.scrollHeight <= maxContentHeight) break;
 
       const pageNum = pages.length + 1;
       const breakEl = document.createElement("div");
@@ -581,7 +585,7 @@
       const newPage = document.createElement("section");
       newPage.className = "page";
 
-      while (last.children.length > 0 && last.scrollHeight > last.clientHeight - marginBottom + 1) {
+      while (last.children.length > 0 && last.scrollHeight > last.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX) {
         const child = last.lastElementChild;
         newPage.insertBefore(child, newPage.firstElementChild);
       }
@@ -909,15 +913,28 @@
   }
 
   // ---------- ACTIONS ----------
+  const elPreviewLive = document.getElementById("previewLive");
+
   elRender.addEventListener("click", () => {
     syncFromEditor();
     renderDoc(buildInternalFromForm());
+    if (elPreviewLive) {
+      elPreviewLive.textContent = window.t("success.previewUpdated");
+      setTimeout(() => { elPreviewLive.textContent = ""; }, 2000);
+    }
   });
 
   const elExportPdfModal = document.getElementById("exportPdfModal");
   const elExportPdfFilename = document.getElementById("exportPdfFilename");
   const elExportPdfCancel = document.getElementById("exportPdfCancel");
   const elExportPdfSave = document.getElementById("exportPdfSave");
+  const elExportPdfSaveImage = document.getElementById("exportPdfSaveImage");
+  const elExportPdfSaveAts = document.getElementById("exportPdfSaveAts");
+  const elExportPdfSaveDesign = document.getElementById("exportPdfSaveDesign");
+  const elExportPdfSaveServer = document.getElementById("exportPdfSaveServer");
+
+  // Server-side HTML→PDF endpoint (Vercel function)
+  const SERVER_PDF_ENDPOINT = "https://pdf-server-beryl.vercel.app/api/render-cv";
 
   function openExportPdfModal() {
     if (!elExportPdfModal || !elExportPdfFilename) return;
@@ -973,11 +990,370 @@
     return rootEl.querySelectorAll(".page");
   }
 
-  function runPdfExport(filename) {
-    syncFromEditor();
-    renderDoc(buildInternalFromForm());
+  async function buildServerPdfHtml(data) {
     const el = elRoot;
+    if (!el) return "";
+    const docHtml = el.innerHTML;
+    const baseTitle = (data && data.name ? data.name + " — CV" : "CV");
+    const mainStylesheet = document.querySelector('link[rel="stylesheet"]');
+    const styleHref = mainStylesheet && mainStylesheet.href ? mainStylesheet.href : "styles.css";
+    let styleBlock = "";
+    if (styleHref.startsWith("http://") || styleHref.startsWith("https://")) {
+      try {
+        const cssResp = await fetch(styleHref);
+        if (cssResp.ok) {
+          const cssText = await cssResp.text();
+          styleBlock = `<style>${cssText}</style>`;
+        }
+      } catch (_) {}
+    }
+    if (!styleBlock) styleBlock = `<link rel="stylesheet" href="${esc(styleHref)}" />`;
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${esc(baseTitle)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  ${styleBlock}
+</head>
+<body>
+  <main class="doc">${docHtml}</main>
+</body>
+</html>`;
+  }
 
+  async function runPdfExportViaServer(filename, data) {
+    if (!SERVER_PDF_ENDPOINT) {
+      runPdfExportAsPrint(elRoot, filename);
+      return;
+    }
+    try {
+      const html = await buildServerPdfHtml(data || buildInternalFromForm());
+      const resp = await fetch(SERVER_PDF_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html, filename: sanitizePdfFilename(filename) }),
+      });
+      if (!resp.ok) throw new Error("Server PDF failed with " + resp.status);
+      const blob = await resp.blob();
+      await savePdfBlob(blob, filename);
+    } catch (err) {
+      console.error(err);
+      runPdfExportAsPrint(elRoot, filename);
+    }
+  }
+
+  /** @param {string} filename
+   *  @param {{ asImage?: boolean, asAts?: boolean, asDesign?: boolean }} [options]
+   *  asAts = pdfmake ATS PDF (text layer, plain),
+   *  asDesign = pdfmake Design PDF (text layer, simplified blue layout),
+   *  asImage = image PDF (html2canvas),
+   *  default = print window (HTML + print dialog).
+   */
+  function runPdfExport(filename, options) {
+    syncFromEditor();
+    const data = buildInternalFromForm();
+    renderDoc(data);
+    const el = elRoot;
+    const asImage = options && options.asImage;
+    const asAts = options && options.asAts;
+    const asDesign = options && options.asDesign;
+
+    if (asAts) {
+      runPdfExportAsAts(data, filename);
+      return;
+    }
+    if (asDesign) {
+      runPdfExportAsDesign(data, filename);
+      return;
+    }
+    if (options && options.useServer) {
+      runPdfExportViaServer(filename, data);
+      return;
+    }
+    if (asImage) {
+      runPdfExportAsImage(el, filename);
+      return;
+    }
+
+    runPdfExportAsPrint(el, filename);
+  }
+
+  /** One-click ATS PDF with real text layer (pdfmake). Plain layout, no blue/gray design. */
+  function runPdfExportAsAts(data, filename) {
+    if (typeof pdfMake === "undefined" || typeof pdfMake.createPdf !== "function") {
+      runPdfExportAsPrint(elRoot, filename);
+      return;
+    }
+    const d = data || buildInternalFromForm();
+    const section = (title, body) => [
+      { text: (title || "").toUpperCase(), style: "sectionHeader", margin: [0, 14, 0, 4] },
+      body,
+    ];
+    const bullet = (t) => (typeof t === "string" ? t : (t && t.text) || "");
+    const content = [];
+
+    if (d.name) content.push({ text: d.name, style: "name", margin: [0, 0, 0, 2] });
+    if (d.headline) content.push({ text: d.headline, style: "headline", margin: [0, 0, 0, 10] });
+    if (Array.isArray(d.contacts) && d.contacts.length)
+      content.push({ text: d.contacts.join("  ·  "), style: "contacts", margin: [0, 0, 0, 12] });
+
+    if (d.profile && d.profile.all)
+      content.push(...section(d.profileTitle || "Profile", { text: d.profile.all, style: "body" }));
+
+    if (Array.isArray(d.keyImpact) && d.keyImpact.length)
+      content.push(...section(d.keyImpactTitle || "Key Impact", { ul: d.keyImpact.map(bullet) }));
+
+    if (Array.isArray(d.coreCompetencies) && d.coreCompetencies.length)
+      content.push(...section(d.coreCompetenciesTitle || "Core Competencies", { text: d.coreCompetencies.map(bullet).join("  ·  "), style: "body" }));
+
+    const expTitle = d.experienceTitle || "Professional Experience";
+    if (Array.isArray(d.experience) && d.experience.length) {
+      content.push({ text: expTitle.toUpperCase(), style: "sectionHeader", margin: [0, 14, 0, 4] });
+      d.experience.forEach((job) => {
+        const title = [job.company, job.title].filter(Boolean).join(" — ");
+        if (title) content.push({ text: title, style: "jobTitle", margin: [0, 8, 0, 0] });
+        if (job.meta) content.push({ text: job.meta, style: "meta", margin: [0, 0, 0, 2] });
+        if (job.summary) content.push({ text: job.summary, style: "body", margin: [0, 0, 0, 4] });
+        if (Array.isArray(job.bullets) && job.bullets.length)
+          content.push({ ul: job.bullets.map(bullet), margin: [0, 0, 0, 6] });
+      });
+    }
+
+    if (Array.isArray(d.education) && d.education.length)
+      content.push(...section(d.educationTitle || "Education", { ul: d.education }));
+
+    if (Array.isArray(d.projects) && d.projects.length)
+      content.push(...section(d.projectsTitle || "Selected Projects", { ul: d.projects }));
+
+    if (Array.isArray(d.languages) && d.languages.length)
+      content.push(...section(d.languagesTitle || "Languages", { ul: d.languages.map(bullet) }));
+
+    const docDef = {
+      pageSize: "A4",
+      pageMargins: [50, 50, 50, 50],
+      defaultStyle: { fontSize: 10, color: "#111827" },
+      styles: {
+        name: { fontSize: 20, bold: true },
+        headline: { fontSize: 11, color: "#4b5563" },
+        contacts: { fontSize: 10, color: "#4b5563" },
+        sectionHeader: { fontSize: 11, bold: true },
+        jobTitle: { fontSize: 11, bold: true },
+        meta: { fontSize: 9, color: "#6b7280" },
+        body: { fontSize: 10 },
+      },
+      content,
+    };
+    try {
+      const pdf = pdfMake.createPdf(docDef);
+      pdf.getBlob((blob) => {
+        savePdfBlob(blob, filename).catch(() => {});
+      });
+    } catch (err) {
+      console.error(err);
+      runPdfExportAsPrint(elRoot, filename);
+    }
+  }
+
+  /** One-click Design PDF with text layer (pdfmake). Approximates default blue layout. */
+  function runPdfExportAsDesign(data, filename) {
+    if (typeof pdfMake === "undefined" || typeof pdfMake.createPdf !== "function") {
+      runPdfExportAsPrint(elRoot, filename);
+      return;
+    }
+    const d = data || buildInternalFromForm();
+    const bullet = (t) => (typeof t === "string" ? t : (t && t.text) || "");
+
+    const headerColumns = [];
+    const leftStack = [];
+    const rightStack = [];
+    if (d.name) leftStack.push({ text: d.name, style: "design_name" });
+    if (d.headline) leftStack.push({ text: d.headline, style: "design_headline", margin: [0, 4, 0, 0] });
+    if (Array.isArray(d.contacts) && d.contacts.length) {
+      rightStack.push({ text: d.contacts.join("\n"), style: "design_contacts" });
+    }
+    if (leftStack.length || rightStack.length) {
+      headerColumns.push({
+        columns: [
+          { width: "*", stack: leftStack },
+          { width: "auto", stack: rightStack, alignment: "right" },
+        ],
+        margin: [0, 0, 0, 14],
+      });
+    }
+
+    const section = (title) => ({
+      text: String(title || "").toUpperCase(),
+      style: "design_sectionHeader",
+      margin: [0, 18, 0, 6],
+    });
+
+    const content = [...headerColumns];
+
+    if (d.profile && d.profile.all) {
+      content.push(section(d.profileTitle || (typeof window.t === "function" ? window.t("section.profile") : "Profile")));
+      content.push({ text: d.profile.all, style: "design_body" });
+    }
+
+    if (Array.isArray(d.keyImpact) && d.keyImpact.length) {
+      content.push(section(d.keyImpactTitle || (typeof window.t === "function" ? window.t("section.keyImpact") : "Key impact")));
+      content.push({ ul: d.keyImpact.map(bullet), style: "design_list" });
+    }
+
+    if (Array.isArray(d.coreCompetencies) && d.coreCompetencies.length) {
+      content.push(
+        section(
+          d.coreCompetenciesTitle ||
+            (typeof window.t === "function" ? window.t("section.coreCompetencies") : "Core competencies")
+        )
+      );
+      content.push({
+        text: d.coreCompetencies.map(bullet).join("  ·  "),
+        style: "design_body",
+      });
+    }
+
+    const expTitle =
+      d.experienceTitle || (typeof window.t === "function" ? window.t("section.experience") : "Professional experience");
+    if (Array.isArray(d.experience) && d.experience.length) {
+      content.push(section(expTitle));
+      d.experience.forEach((job, idx) => {
+        if (idx > 0) {
+          content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#d1d5db" }], margin: [0, 10, 0, 10] });
+        }
+        const title = [job.company, job.title].filter(Boolean).join(" - ");
+        if (title) {
+          content.push({ text: title, style: "design_jobTitle", margin: [0, 0, 0, 1] });
+        }
+        if (job.meta) {
+          content.push({ text: job.meta, style: "design_meta", margin: [0, 0, 0, 3] });
+        }
+        if (job.summary) {
+          content.push({ text: job.summary, style: "design_body", margin: [0, 0, 0, 3] });
+        }
+        if (Array.isArray(job.bullets) && job.bullets.length) {
+          content.push({ ul: job.bullets.map(bullet), style: "design_list", margin: [0, 0, 0, 6] });
+        }
+      });
+    }
+
+    if (Array.isArray(d.education) && d.education.length) {
+      content.push(
+        section(d.educationTitle || (typeof window.t === "function" ? window.t("section.education") : "Education"))
+      );
+      content.push({ ul: d.education, style: "design_list" });
+    }
+
+    if (Array.isArray(d.projects) && d.projects.length) {
+      content.push(
+        section(d.projectsTitle || (typeof window.t === "function" ? window.t("section.projects") : "Selected projects"))
+      );
+      content.push({ ul: d.projects, style: "design_list" });
+    }
+
+    if (Array.isArray(d.languages) && d.languages.length) {
+      content.push(
+        section(d.languagesTitle || (typeof window.t === "function" ? window.t("section.languages") : "Languages"))
+      );
+      content.push({ ul: d.languages.map(bullet), style: "design_list" });
+    }
+
+    const docDef = {
+      pageSize: "A4",
+      pageMargins: [40, 40, 40, 40],
+      defaultStyle: { fontSize: 10, color: "#111827" },
+      styles: {
+        design_name: { fontSize: 20, bold: true, color: "#111827" },
+        design_headline: { fontSize: 11, color: "#4b5563" },
+        design_contacts: { fontSize: 10, color: "#4b5563" },
+        design_sectionHeader: {
+          fontSize: 11,
+          bold: true,
+          color: "#2563eb",
+          margin: [0, 18, 0, 6],
+        },
+        design_jobTitle: { fontSize: 11, bold: true },
+        design_meta: { fontSize: 9, color: "#6b7280" },
+        design_body: { fontSize: 10, color: "#111827" },
+        design_list: { fontSize: 10, margin: [0, 2, 0, 0] },
+      },
+      content,
+    };
+
+    try {
+      const pdf = pdfMake.createPdf(docDef);
+      pdf.getBlob((blob) => {
+        savePdfBlob(blob, filename).catch(() => {});
+      });
+    } catch (err) {
+      console.error(err);
+      runPdfExportAsPrint(elRoot, filename);
+    }
+  }
+
+  function runPdfExportAsPrint(el, filename) {
+    if (!el) {
+      window.print();
+      return;
+    }
+    const docHtml = el.innerHTML;
+    const data = buildInternalFromForm();
+    const baseTitle = (data && data.name ? data.name + " — CV" : "CV");
+    const printTipText =
+      typeof window.t === "function" ? window.t("exportPdf.printTip") : "In print settings, disable «Headers and footers» (no URL/date in PDF). Enable «Background graphics» to keep blue headings.";
+    const printTipTitle =
+      typeof window.t === "function" ? window.t("exportPdf.printTipTitle") : "Before saving to PDF:";
+    const printBtnLabel =
+      typeof window.t === "function" ? window.t("exportPdf.printBtnLabel") : "Open print dialog";
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    const mainStylesheet = document.querySelector('link[rel="stylesheet"]');
+    const styleHref = mainStylesheet && mainStylesheet.href ? mainStylesheet.href : "styles.css";
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${esc(baseTitle)}</title>
+  <link rel="stylesheet" href="${esc(styleHref)}" />
+  <style>
+    .print-tip {
+      margin: 0 0 16px 0; padding: 14px 18px; background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px;
+      font-size: 14px; color: #1e3a5f; line-height: 1.5; font-weight: 500;
+    }
+    .print-tip strong { display: block; margin-bottom: 6px; font-size: 15px; }
+    .print-actions { margin-bottom: 20px; }
+    .print-actions button {
+      padding: 10px 20px; font-size: 15px; font-weight: 600; cursor: pointer;
+      background: #2563eb; color: #fff; border: none; border-radius: 8px;
+    }
+    .print-actions button:hover { background: #1d4ed8; }
+    @media print { .print-tip, .print-actions { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="print-tip" role="status">
+    <strong>${esc(printTipTitle)}</strong>
+    ${esc(printTipText)}
+  </div>
+  <div class="print-actions">
+    <button type="button" id="printTrigger">${esc(printBtnLabel)}</button>
+  </div>
+  <main class="doc">${docHtml}</main>
+  <script>
+    document.getElementById("printTrigger").onclick = function() { window.focus(); window.print(); };
+  </script>
+</body>
+</html>`;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
+
+  function runPdfExportAsImage(el, filename) {
     function setPdfExportUi(exporting) {
       el.classList.toggle("pdf-export", exporting);
       elPrint.disabled = exporting;
@@ -987,72 +1363,51 @@
         if (elPrint) elPrint.focus();
       }
     }
-
     const done = () => setPdfExportUi(false);
+    setPdfExportUi(true);
+    el.scrollIntoView({ block: "start", behavior: "auto" });
+    if (el.parentElement) el.parentElement.scrollTop = 0;
 
-    function startPdfExport() {
-      setPdfExportUi(true);
-      el.scrollIntoView({ block: "start", behavior: "auto" });
-      if (el.parentElement) el.parentElement.scrollTop = 0;
-    }
-
-    const usePerPageExport =
+    const usePerPage =
       typeof html2canvas !== "undefined" &&
       (typeof jspdf !== "undefined" || typeof jsPDF !== "undefined");
 
-    if (usePerPageExport) {
-      startPdfExport();
-
+    if (usePerPage) {
       requestAnimationFrame(() => {
-        const remainingPages = removeEmptyPages(el);
-        const JsPDF = (typeof jspdf !== "undefined" && jspdf.jsPDF) || (typeof jsPDF !== "undefined" && jsPDF) || null;
-
-        if (!JsPDF || remainingPages.length === 0) {
-          done();
-          if (remainingPages.length === 0) return;
-        }
-
-        const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-        const canvasOpt = {
-          scale: PDF_CANVAS_SCALE,
-          useCORS: true,
-          scrollX: 0,
-          scrollY: 0,
-          logging: false,
-        };
-
-        const addPageToPdf = (pageIndex) => {
-          if (pageIndex >= remainingPages.length) {
-            const blob = pdf.output("blob");
-            savePdfBlob(blob, filename).then(done).catch((err) => {
-              console.error(err);
-              done();
-            });
-            return;
+        balancePages();
+        ensureNoPageOverflows();
+        requestAnimationFrame(() => {
+          const remainingPages = removeEmptyPages(el);
+          const JsPDF = (typeof jspdf !== "undefined" && jspdf.jsPDF) || (typeof jsPDF !== "undefined" && jsPDF) || null;
+          if (!JsPDF || remainingPages.length === 0) {
+            done();
+            if (remainingPages.length === 0) return;
           }
-          const pageEl = remainingPages[pageIndex];
-          pageEl.scrollIntoView({ block: "start", behavior: "auto" });
-          setTimeout(() => {
-            html2canvas(pageEl, canvasOpt)
-              .then((canvas) => {
-                const dataUrl = canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
-                if (pageIndex > 0) pdf.addPage();
-                pdf.addImage(dataUrl, "JPEG", 0, 0, 210, 297);
-                addPageToPdf(pageIndex + 1);
-              })
-              .catch((err) => {
-                console.error(err);
-                done();
-                window.print();
-              });
-          }, PDF_PAGE_DELAY_MS);
-        };
-
-        addPageToPdf(0);
+          const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+          const canvasOpt = { scale: PDF_CANVAS_SCALE, useCORS: true, scrollX: 0, scrollY: 0, logging: false };
+          const addPageToPdf = (pageIndex) => {
+            if (pageIndex >= remainingPages.length) {
+              const blob = pdf.output("blob");
+              savePdfBlob(blob, filename).then(done).catch((err) => { console.error(err); done(); });
+              return;
+            }
+            const pageEl = remainingPages[pageIndex];
+            pageEl.scrollIntoView({ block: "start", behavior: "auto" });
+            setTimeout(() => {
+              html2canvas(pageEl, canvasOpt)
+                .then((canvas) => {
+                  const dataUrl = canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
+                  if (pageIndex > 0) pdf.addPage();
+                  pdf.addImage(dataUrl, "JPEG", 0, 0, 210, 297);
+                  addPageToPdf(pageIndex + 1);
+                })
+                .catch((err) => { console.error(err); done(); window.print(); });
+            }, PDF_PAGE_DELAY_MS);
+          };
+          addPageToPdf(0);
+        });
       });
     } else if (typeof html2pdf !== "undefined") {
-      startPdfExport();
-
       const opt = {
         margin: 0,
         filename: sanitizePdfFilename(filename),
@@ -1060,20 +1415,14 @@
         html2canvas: { scale: PDF_CANVAS_SCALE, useCORS: true, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
-
       requestAnimationFrame(() => {
-        const remainingPages = removeEmptyPages(el);
-        opt.pagebreak = remainingPages.length > 1 ? { mode: "css", before: ".page-break-preview + .page" } : {};
-        html2pdf()
-          .set(opt)
-          .from(el)
-          .save()
-          .then(done)
-          .catch((err) => {
-            console.error(err);
-            done();
-            window.print();
-          });
+        balancePages();
+        ensureNoPageOverflows();
+        requestAnimationFrame(() => {
+          const remainingPages = removeEmptyPages(el);
+          opt.pagebreak = remainingPages.length > 1 ? { mode: "css", before: ".page-break-preview + .page" } : {};
+          html2pdf().set(opt).from(el).save().then(done).catch((err) => { console.error(err); done(); window.print(); });
+        });
       });
     } else {
       window.print();
@@ -1093,6 +1442,34 @@
       const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
       closeExportPdfModal(false);
       runPdfExport(name || "CV.pdf");
+    });
+  }
+  if (elExportPdfSaveImage) {
+    elExportPdfSaveImage.addEventListener("click", () => {
+      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
+      closeExportPdfModal(false);
+      runPdfExport(name || "CV.pdf", { asImage: true });
+    });
+  }
+  if (elExportPdfSaveAts) {
+    elExportPdfSaveAts.addEventListener("click", () => {
+      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
+      closeExportPdfModal(false);
+      runPdfExport(name || "CV.pdf", { asAts: true });
+    });
+  }
+  if (elExportPdfSaveDesign) {
+    elExportPdfSaveDesign.addEventListener("click", () => {
+      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
+      closeExportPdfModal(false);
+      runPdfExport(name || "CV.pdf", { asDesign: true });
+    });
+  }
+  if (elExportPdfSaveServer) {
+    elExportPdfSaveServer.addEventListener("click", () => {
+      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
+      closeExportPdfModal(false);
+      runPdfExport(name || "CV.pdf", { useServer: true });
     });
   }
   if (elExportPdfModal && elExportPdfModal.querySelector(".modal__backdrop")) {
@@ -1188,8 +1565,18 @@
     });
   }
 
+  function saveDraft() {
+    try {
+      syncFromEditor();
+      const data = buildInternalFromForm();
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) { /* ignore */ }
+  }
+  const debouncedSaveDraft = debounce(saveDraft, DRAFT_SAVE_DEBOUNCE_MS);
+
   elReset.addEventListener("click", () => {
     if (!confirm(window.t("confirm.reset"))) return;
+    try { localStorage.removeItem(DRAFT_STORAGE_KEY); } catch (e) { /* ignore */ }
     clearDirty();
     fName.value = "";
     fHeadline.value = "";
@@ -1210,8 +1597,8 @@
 
   const panel = document.querySelector(".panel");
   if (panel) {
-    panel.addEventListener("input", setDirty);
-    panel.addEventListener("change", setDirty);
+    panel.addEventListener("input", (e) => { setDirty(); debouncedSaveDraft(); });
+    panel.addEventListener("change", (e) => { setDirty(); debouncedSaveDraft(); });
     function setTitleFieldVisible(input, visible) {
       if (!input) return;
       input.hidden = !visible;
@@ -1382,5 +1769,16 @@
   // ---------- INIT ----------
   renderExpEditor();
   renderDoc(buildInternalFromForm());
+
+  (function tryRestoreDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== "object") return;
+      loadFromJsonData(data);
+      showJsonSuccess(window.t("success.draftRestored"));
+    } catch (e) { /* ignore */ }
+  })();
   });
 })();
