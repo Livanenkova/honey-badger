@@ -1,0 +1,14 @@
+{
+  "name": "hb-pdf-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^143.0.4",
+    "puppeteer-core": "^22.6.0"
+  }
+}
+

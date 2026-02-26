@@ -17,3 +17,7 @@ A simple, offline-first CV/resume builder. Fill in the form, see a live preview,
 ## Try it
 
 **Live:** [GitHub Pages](https://livanenkova.github.io/honey-badger/) — open the link and use the app in the browser.
+
+## Development
+
+Open `index.html` in a browser (or use a local static server). No build step required. Draft is auto-saved to `localStorage` and restored on reload; use **Reset** to clear the draft.
