@@ -150,6 +150,26 @@
     }[m]));
   }
 
+  /** Returns mailto: or https: URL for a contact line, or null if not a link. */
+  function contactHref(c) {
+    const s = String(c ?? "").trim();
+    if (!s) return null;
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "mailto:" + s;
+    if (/^https?:\/\//i.test(s)) return s;
+    if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(\/.*)?$/i.test(s) || /linkedin\.com|github\.com/i.test(s))
+      return s.startsWith("//") ? "https:" + s : /^https?:\/\//i.test(s) ? s : "https://" + s;
+    return null;
+  }
+
+  /** Returns HTML for one contact: <a href="..."> or plain text. */
+  function contactToLinkHtml(c) {
+    const s = String(c ?? "").trim();
+    if (!s) return "";
+    const href = contactHref(s);
+    if (href) return `<a class="contact__link" href="${esc(href)}">${esc(s)}</a>`;
+    return esc(s);
+  }
+
   function lines(t) {
     return String(t || "")
       .split("\n")
@@ -645,7 +665,7 @@
             <p class="headline">${esc(d.headline || "")}</p>
           </div>
           <div class="header__right">
-            ${(d.contacts || []).map((c) => `<div class="contact">${esc(c)}</div>`).join("")}
+            ${(d.contacts || []).map((c) => `<div class="contact">${contactToLinkHtml(c)}</div>`).join("")}
           </div>
         </section>
 
@@ -928,9 +948,7 @@
   const elExportPdfFilename = document.getElementById("exportPdfFilename");
   const elExportPdfCancel = document.getElementById("exportPdfCancel");
   const elExportPdfSave = document.getElementById("exportPdfSave");
-  const elExportPdfSaveImage = document.getElementById("exportPdfSaveImage");
   const elExportPdfSaveAts = document.getElementById("exportPdfSaveAts");
-  const elExportPdfSaveDesign = document.getElementById("exportPdfSaveDesign");
   const elExportPdfSaveServer = document.getElementById("exportPdfSaveServer");
 
   // Server-side HTML→PDF endpoint (Vercel function)
@@ -938,6 +956,7 @@
 
   function openExportPdfModal() {
     if (!elExportPdfModal || !elExportPdfFilename) return;
+    if (typeof window.applyLocale === "function") window.applyLocale();
     elExportPdfFilename.value = defaultPdfFilename();
     elExportPdfModal.removeAttribute("hidden");
     elExportPdfFilename.focus();
@@ -990,24 +1009,104 @@
     return rootEl.querySelectorAll(".page");
   }
 
+  const PDF_DEBUG = true; // set false to disable [HB-PDF *] console logs
+
+  /** Returns Promise of <style>...</style> or <link.../> for styles.css (works from file:// via styleSheets). */
+  async function getAppCssStyleBlock() {
+    const log = PDF_DEBUG ? (...a) => console.log("[HB-PDF styles]", ...a) : () => {};
+    const appStylesheet = document.querySelector('link[rel="stylesheet"][href*="styles.css"]');
+    const styleHref = appStylesheet && appStylesheet.href ? appStylesheet.href : "styles.css";
+    const isHttp = styleHref.startsWith("http://") || styleHref.startsWith("https://");
+    const urlToFetch = isHttp ? styleHref : new URL("styles.css", window.location.href).href;
+    log("origin:", window.location.origin, "| styleHref:", styleHref, "| isHttp:", isHttp);
+
+    try {
+      const cssResp = await fetch(urlToFetch);
+      log("fetch(urlToFetch):", cssResp.status, cssResp.statusText, "url:", urlToFetch);
+      if (cssResp.ok) {
+        const cssText = await cssResp.text();
+        if (cssText && cssText.trim()) {
+          log("CSS inlined from fetch, length:", cssText.length);
+          return `<style>${cssText}</style>`;
+        }
+        log("fetch ok but empty response");
+      }
+    } catch (e) {
+      log("fetch(urlToFetch) failed:", e.message || e);
+    }
+    if (!isHttp) {
+      try {
+        const relResp = await fetch("styles.css");
+        log("fetch('styles.css'):", relResp.status, relResp.statusText);
+        if (relResp.ok) {
+          const cssText = await relResp.text();
+          if (cssText && cssText.trim()) {
+            log("CSS inlined from fetch(relative), length:", cssText.length);
+            return `<style>${cssText}</style>`;
+          }
+        }
+      } catch (e) {
+        log("fetch('styles.css') failed:", e.message || e);
+      }
+    }
+    if (typeof document.styleSheets !== "undefined") {
+      log("document.styleSheets.length:", document.styleSheets.length);
+      for (let i = 0; i < document.styleSheets.length; i++) {
+        const sheet = document.styleSheets[i];
+        try {
+          const href = (sheet.href || "") + (sheet.ownerNode && sheet.ownerNode.getAttribute ? (sheet.ownerNode.getAttribute("href") || "") : "");
+          if (href.indexOf("styles.css") === -1) continue;
+          if (!sheet.cssRules) {
+            log("sheet", i, "href contains styles.css but no cssRules (CORS?)");
+            continue;
+          }
+          let cssText = "";
+          for (let j = 0; j < sheet.cssRules.length; j++) cssText += sheet.cssRules[j].cssText;
+          if (cssText) {
+            log("CSS inlined from styleSheets[styles.css], length:", cssText.length);
+            return `<style>${cssText}</style>`;
+          }
+          break;
+        } catch (e) {
+          log("styleSheets[" + i + "] error:", e.message || e);
+        }
+      }
+      for (let i = document.styleSheets.length - 1; i >= 0; i--) {
+        const sheet = document.styleSheets[i];
+        try {
+          if ((sheet.href || "").indexOf("fonts.googleapis") !== -1) continue;
+          if (!sheet.cssRules || sheet.cssRules.length === 0) continue;
+          let cssText = "";
+          for (let j = 0; j < sheet.cssRules.length; j++) cssText += sheet.cssRules[j].cssText;
+          if (cssText.length > 400) {
+            log("CSS inlined from styleSheets[last non-google], length:", cssText.length);
+            return `<style>${cssText}</style>`;
+          }
+        } catch (e) {
+          log("styleSheets fallback[" + i + "] error:", e.message || e);
+        }
+      }
+    }
+    if (isHttp) {
+      log("fallback: using <link>, server may not load it from your origin");
+      return `<link rel="stylesheet" href="${esc(styleHref)}" />`;
+    }
+    log("fallback: empty <style> (file:// and no styleSheets access)");
+    return "<style></style>";
+  }
+
   async function buildServerPdfHtml(data) {
+    const log = PDF_DEBUG ? (...a) => console.log("[HB-PDF buildHtml]", ...a) : () => {};
     const el = elRoot;
-    if (!el) return "";
+    if (!el) {
+      log("no elRoot, returning empty");
+      return "";
+    }
     const docHtml = el.innerHTML;
     const baseTitle = (data && data.name ? data.name + " — CV" : "CV");
-    const mainStylesheet = document.querySelector('link[rel="stylesheet"]');
-    const styleHref = mainStylesheet && mainStylesheet.href ? mainStylesheet.href : "styles.css";
-    let styleBlock = "";
-    if (styleHref.startsWith("http://") || styleHref.startsWith("https://")) {
-      try {
-        const cssResp = await fetch(styleHref);
-        if (cssResp.ok) {
-          const cssText = await cssResp.text();
-          styleBlock = `<style>${cssText}</style>`;
-        }
-      } catch (_) {}
-    }
-    if (!styleBlock) styleBlock = `<link rel="stylesheet" href="${esc(styleHref)}" />`;
+    const styleBlock = await getAppCssStyleBlock();
+    const hasInlineStyle = styleBlock.indexOf("<style>") !== -1 && styleBlock.length > 50;
+    log("docHtml length:", docHtml.length, "| styleBlock length:", styleBlock.length, "| hasInlineStyle:", hasInlineStyle);
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -1016,30 +1115,68 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   ${styleBlock}
+  <style>html,body{margin:0;padding:0;}
+  @media print{ @page{margin:0;size:A4;} }</style>
 </head>
 <body>
-  <main class="doc">${docHtml}</main>
+  <main class="${esc((el && el.className) ? el.className : "doc")}">${docHtml}</main>
 </body>
 </html>`;
   }
 
   async function runPdfExportViaServer(filename, data) {
+    const log = PDF_DEBUG ? (...a) => console.log("[HB-PDF server]", ...a) : () => {};
     if (!SERVER_PDF_ENDPOINT) {
+      log("no SERVER_PDF_ENDPOINT, using print");
       runPdfExportAsPrint(elRoot, filename);
       return;
     }
+    const formData = data || buildInternalFromForm();
     try {
-      const html = await buildServerPdfHtml(data || buildInternalFromForm());
+      log("start: endpoint:", SERVER_PDF_ENDPOINT);
+      elRoot.classList.add("pdf-export");
+      balancePages();
+      ensureNoPageOverflows();
+      const html = await buildServerPdfHtml(formData);
+      elRoot.classList.remove("pdf-export");
+      renderDoc(formData);
+      const payload = { html, filename: sanitizePdfFilename(filename) };
+      const bodyLen = JSON.stringify(payload).length;
+      log("sending POST, body size:", bodyLen, "bytes, html length:", html.length);
       const resp = await fetch(SERVER_PDF_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html, filename: sanitizePdfFilename(filename) }),
+        body: JSON.stringify(payload),
       });
-      if (!resp.ok) throw new Error("Server PDF failed with " + resp.status);
+      log("response:", resp.status, resp.statusText, "Content-Type:", resp.headers.get("Content-Type"));
+      if (!resp.ok) {
+        const text = await resp.text();
+        log("error body:", text.slice(0, 500));
+        throw new Error("Server PDF failed with " + resp.status + (text ? ": " + text.slice(0, 200) : ""));
+      }
       const blob = await resp.blob();
+      log("blob size:", blob.size, "bytes");
       await savePdfBlob(blob, filename);
+      log("done, PDF saved");
     } catch (err) {
-      console.error(err);
+      console.error("[HB-PDF server] FAILED:", err);
+      if (PDF_DEBUG && err && err.stack) console.error("[HB-PDF server] stack:", err.stack);
+      elRoot.classList.remove("pdf-export");
+      renderDoc(formData);
+      const reason = err.message || (err && err.toString()) || "Unknown error";
+      const msg = typeof window.t === "function"
+        ? window.t("exportPdf.serverFailedFallback") + " (" + reason + ")"
+        : "Server PDF unavailable: " + reason + ". Opening print dialog.";
+      if (elPreviewLive) {
+        elPreviewLive.textContent = msg;
+        elPreviewLive.removeAttribute("hidden");
+        elPreviewLive.classList.remove("visually-hidden");
+        setTimeout(() => {
+          elPreviewLive.textContent = "";
+          elPreviewLive.setAttribute("hidden", "");
+          elPreviewLive.classList.add("visually-hidden");
+        }, 6000);
+      }
       runPdfExportAsPrint(elRoot, filename);
     }
   }
@@ -1047,8 +1184,6 @@
   /** @param {string} filename
    *  @param {{ asImage?: boolean, asAts?: boolean, asDesign?: boolean }} [options]
    *  asAts = pdfmake ATS PDF (text layer, plain),
-   *  asDesign = pdfmake Design PDF (text layer, simplified blue layout),
-   *  asImage = image PDF (html2canvas),
    *  default = print window (HTML + print dialog).
    */
   function runPdfExport(filename, options) {
@@ -1056,27 +1191,16 @@
     const data = buildInternalFromForm();
     renderDoc(data);
     const el = elRoot;
-    const asImage = options && options.asImage;
     const asAts = options && options.asAts;
-    const asDesign = options && options.asDesign;
 
     if (asAts) {
       runPdfExportAsAts(data, filename);
-      return;
-    }
-    if (asDesign) {
-      runPdfExportAsDesign(data, filename);
       return;
     }
     if (options && options.useServer) {
       runPdfExportViaServer(filename, data);
       return;
     }
-    if (asImage) {
-      runPdfExportAsImage(el, filename);
-      return;
-    }
-
     runPdfExportAsPrint(el, filename);
   }
 
@@ -1096,8 +1220,16 @@
 
     if (d.name) content.push({ text: d.name, style: "name", margin: [0, 0, 0, 2] });
     if (d.headline) content.push({ text: d.headline, style: "headline", margin: [0, 0, 0, 10] });
-    if (Array.isArray(d.contacts) && d.contacts.length)
-      content.push({ text: d.contacts.join("  ·  "), style: "contacts", margin: [0, 0, 0, 12] });
+    if (Array.isArray(d.contacts) && d.contacts.length) {
+      const sep = { text: "  ·  " };
+      const contactItems = d.contacts.flatMap((c, i) => {
+        const s = String(c ?? "").trim();
+        const href = contactHref(s);
+        const segment = href ? { text: s, link: href } : { text: s };
+        return i === 0 ? [segment] : [sep, segment];
+      });
+      content.push({ text: contactItems, style: "contacts", margin: [0, 0, 0, 12] });
+    }
 
     if (d.profile && d.profile.all)
       content.push(...section(d.profileTitle || "Profile", { text: d.profile.all, style: "body" }));
@@ -1292,13 +1424,19 @@
     }
   }
 
-  function runPdfExportAsPrint(el, filename) {
+  async function runPdfExportAsPrint(el, filename) {
     if (!el) {
       window.print();
       return;
     }
-    const docHtml = el.innerHTML;
     const data = buildInternalFromForm();
+    el.classList.add("pdf-export");
+    balancePages();
+    ensureNoPageOverflows();
+    const docHtml = el.innerHTML;
+    const mainClass = (el && el.className) ? el.className : "doc pdf-export";
+    el.classList.remove("pdf-export");
+    renderDoc(data);
     const baseTitle = (data && data.name ? data.name + " — CV" : "CV");
     const printTipText =
       typeof window.t === "function" ? window.t("exportPdf.printTip") : "In print settings, disable «Headers and footers» (no URL/date in PDF). Enable «Background graphics» to keep blue headings.";
@@ -1311,14 +1449,15 @@
       window.print();
       return;
     }
-    const mainStylesheet = document.querySelector('link[rel="stylesheet"]');
-    const styleHref = mainStylesheet && mainStylesheet.href ? mainStylesheet.href : "styles.css";
+    const styleBlock = await getAppCssStyleBlock();
     const html = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>${esc(baseTitle)}</title>
-  <link rel="stylesheet" href="${esc(styleHref)}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  ${styleBlock}
   <style>
     .print-tip {
       margin: 0 0 16px 0; padding: 14px 18px; background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px;
@@ -1331,7 +1470,12 @@
       background: #2563eb; color: #fff; border: none; border-radius: 8px;
     }
     .print-actions button:hover { background: #1d4ed8; }
-    @media print { .print-tip, .print-actions { display: none !important; } }
+    @media print {
+      .print-tip, .print-actions { display: none !important; }
+      @page { margin: 0; size: A4; }
+      .doc.pdf-export .page { page-break-after: always; }
+      .doc.pdf-export .page:last-child { page-break-after: auto; }
+    }
   </style>
 </head>
 <body>
@@ -1342,7 +1486,7 @@
   <div class="print-actions">
     <button type="button" id="printTrigger">${esc(printBtnLabel)}</button>
   </div>
-  <main class="doc">${docHtml}</main>
+  <main class="${esc(mainClass)}">${docHtml}</main>
   <script>
     document.getElementById("printTrigger").onclick = function() { window.focus(); window.print(); };
   </script>
@@ -1444,25 +1588,11 @@
       runPdfExport(name || "CV.pdf");
     });
   }
-  if (elExportPdfSaveImage) {
-    elExportPdfSaveImage.addEventListener("click", () => {
-      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
-      closeExportPdfModal(false);
-      runPdfExport(name || "CV.pdf", { asImage: true });
-    });
-  }
   if (elExportPdfSaveAts) {
     elExportPdfSaveAts.addEventListener("click", () => {
       const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
       closeExportPdfModal(false);
       runPdfExport(name || "CV.pdf", { asAts: true });
-    });
-  }
-  if (elExportPdfSaveDesign) {
-    elExportPdfSaveDesign.addEventListener("click", () => {
-      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
-      closeExportPdfModal(false);
-      runPdfExport(name || "CV.pdf", { asDesign: true });
     });
   }
   if (elExportPdfSaveServer) {

@@ -110,11 +110,11 @@
         filenameLabel: "File name",
         filenameHint: ".pdf will be added if needed.",
         save: "Save (print → PDF)",
-        saveServer: "Download default PDF",
-        saveDesign: "Download design PDF",
+        saveServer: "Download server PDF",
         saveAts: "Download ATS PDF",
         saveImage: "Download as image",
         cancel: "Cancel",
+        serverFailedFallback: "Server PDF unavailable. Opening print dialog.",
       },
       template: {
         label: "Template",
@@ -245,11 +245,11 @@
         filenameLabel: "Имя файла",
         filenameHint: "Расширение .pdf будет добавлено при необходимости.",
         save: "Сохранить (печать → PDF)",
-        saveServer: "Скачать дефолтное PDF",
-        saveDesign: "Скачать дизайн-PDF",
+        saveServer: "Скачать серверное PDF",
         saveAts: "Скачать ATS PDF",
         saveImage: "Скачать как картинку",
         cancel: "Отмена",
+        serverFailedFallback: "Сервер PDF недоступен. Открываю диалог печати.",
       },
       template: {
         label: "Шаблон",
@@ -333,17 +333,26 @@
 
     root.querySelectorAll("[data-i18n]").forEach(function (el) {
       const key = el.getAttribute("data-i18n");
-      if (key) el.textContent = window.t(key);
+      if (key) {
+        const text = window.t(key);
+        if (text !== key) el.textContent = text;
+      }
     });
 
     root.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
       const key = el.getAttribute("data-i18n-placeholder");
-      if (key) el.setAttribute("placeholder", window.t(key));
+      if (key) {
+        const text = window.t(key);
+        if (text !== key) el.setAttribute("placeholder", text);
+      }
     });
 
     root.querySelectorAll("[data-i18n-aria-label]").forEach(function (el) {
       const key = el.getAttribute("data-i18n-aria-label");
-      if (key) el.setAttribute("aria-label", window.t(key));
+      if (key) {
+        const text = window.t(key);
+        if (text !== key) el.setAttribute("aria-label", text);
+      }
     });
 
     root.querySelectorAll("[data-i18n-aria-describedby]").forEach(function (el) {
@@ -351,12 +360,18 @@
       const key = el.getAttribute("data-i18n-aria-describedby");
       const firstId = ids[0];
       const hint = firstId ? document.getElementById(firstId) : null;
-      if (hint && key) hint.textContent = window.t(key);
+      if (hint && key) {
+        const text = window.t(key);
+        if (text !== key) hint.textContent = text;
+      }
     });
 
     root.querySelectorAll("[data-i18n-title]").forEach(function (el) {
       const key = el.getAttribute("data-i18n-title");
-      if (key) el.setAttribute("title", window.t(key));
+      if (key) {
+        const text = window.t(key);
+        if (text !== key) el.setAttribute("title", text);
+      }
     });
   };
 })();
