@@ -3,6 +3,13 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script>
+    (function(){
+      var p = document.location.pathname || '/';
+      if (!/\/$/.test(p)) p = p.replace(/[^/]*$/, '') || '/';
+      document.write('<base href="' + document.location.origin + p + '">');
+    })();
+  </script>
   <meta name="description" content="Offline CV/resume builder. Fill the form, see live preview, export to PDF or JSON. No account required."/>
   <meta name="theme-color" content="#2B5FB8"/>
   <title>Honey Badger</title>
@@ -39,6 +46,10 @@
         <option value="ats" data-i18n="template.ats">ATS</option>
       </select>
     </div>
+    <label class="toolbar__split-toggle" for="splitBlocksToggle" data-i18n-title="hint.splitBlocks" title="When enabled, large experience blocks can split across pages to reduce empty space.">
+      <input id="splitBlocksToggle" type="checkbox"/>
+      <span data-i18n="label.splitBlocks">Split long blocks between pages</span>
+    </label>
   </div>
   <input type="file" id="jsonFileInput" accept=".json" data-i18n-aria-label="aria.chooseJsonFile" style="display:none"/>
   <div class="toolbar__import">
@@ -194,6 +205,7 @@
 </div>
 
 <script src="strings.js"></script>
+<script src="pdf-fallback-styles.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/pdfmake.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/vfs_fonts.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>

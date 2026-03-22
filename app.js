@@ -14,6 +14,7 @@
   /** Запас в px при балансировке страниц, чтобы контент не обрезался в PDF (шрифты/субпиксель). */
   const PAGE_BALANCE_SAFETY_PX = 14;
   const DRAFT_STORAGE_KEY = "honey-badger-draft";
+  const SPLIT_BLOCKS_STORAGE_KEY = "honey-badger-split-blocks";
   const DRAFT_SAVE_DEBOUNCE_MS = 800;
 
   function debounce(fn, ms) {
@@ -61,6 +62,7 @@
     const elJsonError = document.getElementById("jsonError");
     const elNameHint = document.getElementById("fNameHint");
     const elTemplateSelect = document.getElementById("templateSelect");
+    const elSplitBlocksToggle = document.getElementById("splitBlocksToggle");
 
     let formDirty = false;
     function setDirty() {
@@ -150,7 +152,7 @@
     }[m]));
   }
 
-  /** Returns mailto: or https: URL for a contact line, or null if not a link. */
+  /** Returns mailto:, https: or tel: URL for a contact line, or null if not a link. */
   function contactHref(c) {
     const s = String(c ?? "").trim();
     if (!s) return null;
@@ -158,6 +160,12 @@
     if (/^https?:\/\//i.test(s)) return s;
     if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(\/.*)?$/i.test(s) || /linkedin\.com|github\.com/i.test(s))
       return s.startsWith("//") ? "https:" + s : /^https?:\/\//i.test(s) ? s : "https://" + s;
+    // Phone numbers: allow digits, spaces, (), + and dashes; normalize to E.164-like tel: link
+    const phoneRaw = s.replace(/[\s()-]/g, "");
+    if (/^\+?\d{7,}$/.test(phoneRaw)) {
+      const normalized = phoneRaw.startsWith("+") ? phoneRaw : "+" + phoneRaw;
+      return "tel:" + normalized;
+    }
     return null;
   }
 
@@ -248,9 +256,60 @@
     return data;
   }
 
+  /** Normalizes incoming date string to ATS-friendly format: MM/YYYY or YYYY. */
+  function normalizeDateForAts(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+
+    // 1) YYYY-MM or YYYY/MM or YYYY.MM (optional day)
+    let m = s.match(/^(\d{4})[-\/.](\d{1,2})(?:[-\/.]\d{1,2})?$/);
+    if (m) {
+      const year = m[1];
+      const month = String(Math.min(Math.max(parseInt(m[2], 10) || 1, 1), 12)).padStart(2, "0");
+      return month + "/" + year;
+    }
+
+    // 2) MM/YYYY or M/YYYY
+    m = s.match(/^(\d{1,2})[-\/.](\d{4})$/);
+    if (m) {
+      const month = String(Math.min(Math.max(parseInt(m[1], 10) || 1, 1), 12)).padStart(2, "0");
+      const year = m[2];
+      return month + "/" + year;
+    }
+
+    // 3) Month YYYY (Mar 2019 / March 2019)
+    m = s.match(/^(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{4})$/i);
+    if (m) {
+      const monthName = m[1].toLowerCase().slice(0, 3);
+      const monthMap = {
+        jan: "01",
+        feb: "02",
+        mar: "03",
+        apr: "04",
+        may: "05",
+        jun: "06",
+        jul: "07",
+        aug: "08",
+        sep: "09",
+        oct: "10",
+        nov: "11",
+        dec: "12",
+      };
+      const month = monthMap[monthName] || "01";
+      const year = m[2];
+      return month + "/" + year;
+    }
+
+    // 4) Year only
+    if (/^\d{4}$/.test(s)) return s;
+
+    // Fallback: leave as-is if we can't confidently parse
+    return s;
+  }
+
   function toMonthYearRange(startDate, endDate) {
-    const s = startDate ? String(startDate) : "";
-    const e = endDate ? String(endDate) : "";
+    const s = normalizeDateForAts(startDate);
+    const e = normalizeDateForAts(endDate);
     if (s && e) return `${s} - ${e}`; // keep ASCII hyphen
     return s || e || "";
   }
@@ -521,6 +580,140 @@
     return parseFloat(getComputedStyle(pageEl).paddingBottom) || 0;
   }
 
+  function getEffectivePageBottomPx(pageEl) {
+    const marginBottomPx = getPageBottomMarginPx(pageEl);
+    const rect = pageEl.getBoundingClientRect();
+    return rect.bottom - marginBottomPx - PAGE_BALANCE_SAFETY_PX;
+  }
+
+  function getSplitBlocksEnabled() {
+    return !!(elSplitBlocksToggle && elSplitBlocksToggle.checked);
+  }
+
+  /** Small visible hint that this experience block continues from the previous page. */
+  function addExperienceContinuationLabel(sectionEl) {
+    if (!sectionEl || !sectionEl.classList || !sectionEl.classList.contains("expBlock--continued")) return;
+    if (sectionEl.querySelector(".expBlock__continued-label")) return;
+    const p = document.createElement("p");
+    p.className = "expBlock__continued-label";
+    p.textContent = typeof window.t === "function" ? window.t("experience.continued") : "(continued)";
+    if (typeof window.t === "function") {
+      p.setAttribute("aria-label", window.t("experience.continuedAria"));
+    }
+    sectionEl.insertBefore(p, sectionEl.firstChild);
+  }
+
+  function isElementOverflowingPage(pageEl, element) {
+    if (!pageEl || !element) return false;
+    return element.getBoundingClientRect().bottom > getEffectivePageBottomPx(pageEl);
+  }
+
+  function moveOverflowListItemsToNextPage(pageEl, nextPageEl) {
+    if (!getSplitBlocksEnabled()) return false;
+    const block = pageEl && pageEl.lastElementChild;
+    if (!block || !block.matches || !block.matches(".expBlock")) return false;
+    if (!isElementOverflowingPage(pageEl, block)) return false;
+
+    const list = block.querySelector(".list");
+    if (!list) return false;
+    const items = Array.from(list.children || []);
+    if (items.length < 2) return false;
+
+    const continuation = block.cloneNode(true);
+    continuation.classList.add("expBlock--continued");
+    continuation.classList.remove("section--divider");
+    const continuationList = continuation.querySelector(".list");
+    if (!continuationList) return false;
+    continuationList.innerHTML = "";
+
+    let moved = 0;
+    while (list.children.length > 1 && isElementOverflowingPage(pageEl, block)) {
+      const li = list.lastElementChild;
+      continuationList.insertBefore(li, continuationList.firstElementChild);
+      moved++;
+    }
+
+    if (moved === 0) return false;
+    addExperienceContinuationLabel(continuation);
+    nextPageEl.insertBefore(continuation, nextPageEl.firstElementChild);
+    return true;
+  }
+
+  function splitBlockToFitCurrentPage(blockEl, currentPageEl, nextPageEl) {
+    if (!getSplitBlocksEnabled()) return false;
+    if (!blockEl || !currentPageEl || !nextPageEl) return false;
+    if (!blockEl.matches || !blockEl.matches(".expBlock")) return false;
+    if (!isElementOverflowingPage(currentPageEl, blockEl)) return false;
+
+    const list = blockEl.querySelector(".list");
+    if (!list) return false;
+    const items = Array.from(list.children || []);
+    if (items.length < 2) return false;
+
+    const continuation = blockEl.cloneNode(true);
+    continuation.classList.add("expBlock--continued");
+    continuation.classList.remove("section--divider");
+    const continuationList = continuation.querySelector(".list");
+    if (!continuationList) return false;
+    continuationList.innerHTML = "";
+
+    let moved = 0;
+    while (list.children.length > 1 && isElementOverflowingPage(currentPageEl, blockEl)) {
+      const li = list.lastElementChild;
+      continuationList.insertBefore(li, continuationList.firstElementChild);
+      moved++;
+    }
+
+    if (moved === 0 || isElementOverflowingPage(currentPageEl, blockEl)) {
+      while (continuationList.firstElementChild) {
+        list.appendChild(continuationList.firstElementChild);
+      }
+      return false;
+    }
+
+    addExperienceContinuationLabel(continuation);
+    nextPageEl.insertBefore(continuation, nextPageEl.firstElementChild);
+    return true;
+  }
+
+  /**
+   * After pagination, two fragments of the same job can end up on the same .page
+   * (false split or later reflow). Merge them into one block so the header is not duplicated.
+   */
+  function mergeSamePageExpContinuations(root) {
+    if (!root) return;
+    root.querySelectorAll(".page").forEach((page) => {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        const blocks = Array.from(page.querySelectorAll(".expBlock"));
+        for (let i = 0; i < blocks.length - 1; i++) {
+          const a = blocks[i];
+          const b = blocks[i + 1];
+          if (!b.classList || !b.classList.contains("expBlock--continued")) continue;
+          if (a.nextElementSibling !== b) continue;
+
+          const roleA = a.querySelector(".exp__role")?.textContent?.trim() || "";
+          const metaA = a.querySelector(".exp__meta")?.textContent?.trim() || "";
+          const roleB = b.querySelector(".exp__role")?.textContent?.trim() || "";
+          const metaB = b.querySelector(".exp__meta")?.textContent?.trim() || "";
+          if (roleA !== roleB || metaA !== metaB) continue;
+
+          const listA = a.querySelector(".list");
+          const listB = b.querySelector(".list");
+          if (!listA || !listB) continue;
+
+          while (listB.firstElementChild) {
+            listA.appendChild(listB.firstElementChild);
+          }
+          b.remove();
+          changed = true;
+          break;
+        }
+      }
+    });
+  }
+
   function balancePages() {
     elRoot.classList.remove("doc--two-pages", "doc--multi-pages");
     const pages = elRoot.querySelectorAll(".page");
@@ -540,6 +733,9 @@
       const effectiveBottom = p1Rect.bottom - marginBottom - PAGE_BALANCE_SAFETY_PX;
 
       if (candRect.bottom > effectiveBottom) {
+        if (splitBlockToFitCurrentPage(candidate, p1, p2)) {
+          break;
+        }
         p2.insertBefore(candidate, p2.firstElementChild);
         break;
       }
@@ -562,9 +758,11 @@
     const pages = elRoot.querySelectorAll(".page");
     const p2 = pages[1];
     if (!p2 || p2.classList.contains("page--empty")) return;
-    const marginBottom = getPageBottomMarginPx(p2);
-    const maxContentHeight = p2.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX;
-    if (p2.scrollHeight <= maxContentHeight) return;
+
+    const effectiveBottom = getEffectivePageBottomPx(p2);
+    const lastChild = p2.lastElementChild;
+    if (!lastChild) return;
+    if (lastChild.getBoundingClientRect().bottom <= effectiveBottom) return;
 
     const p3 = document.createElement("section");
     p3.className = "page";
@@ -573,7 +771,8 @@
     break3.setAttribute("aria-hidden", "true");
     break3.innerHTML = "<span>— Page 3 —</span>";
 
-    while (p2.children.length > 0 && p2.scrollHeight > p2.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX) {
+    while (p2.lastElementChild && p2.lastElementChild.getBoundingClientRect().bottom > getEffectivePageBottomPx(p2)) {
+      if (moveOverflowListItemsToNextPage(p2, p3)) continue;
       const last = p2.lastElementChild;
       p3.insertBefore(last, p3.firstElementChild);
     }
@@ -593,9 +792,11 @@
       const pages = elRoot.querySelectorAll(".page");
       const last = pages[pages.length - 1];
       if (!last) break;
-      const marginBottom = getPageBottomMarginPx(last);
-      const maxContentHeight = last.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX;
-      if (last.scrollHeight <= maxContentHeight) break;
+
+      const effectiveBottom = getEffectivePageBottomPx(last);
+      const lastChild = last.lastElementChild;
+      const isOverflowing = !!lastChild && lastChild.getBoundingClientRect().bottom > effectiveBottom;
+      if (!isOverflowing) break;
 
       const pageNum = pages.length + 1;
       const breakEl = document.createElement("div");
@@ -605,7 +806,8 @@
       const newPage = document.createElement("section");
       newPage.className = "page";
 
-      while (last.children.length > 0 && last.scrollHeight > last.clientHeight - marginBottom - PAGE_BALANCE_SAFETY_PX) {
+      while (last.lastElementChild && last.lastElementChild.getBoundingClientRect().bottom > getEffectivePageBottomPx(last)) {
+        if (moveOverflowListItemsToNextPage(last, newPage)) continue;
         const child = last.lastElementChild;
         newPage.insertBefore(child, newPage.firstElementChild);
       }
@@ -617,6 +819,7 @@
       }
       last.after(breakEl, newPage);
     }
+    mergeSamePageExpContinuations(elRoot);
   }
 
   // ---------- RENDER ----------
@@ -782,9 +985,12 @@
     const basics = incoming?.basics || {};
     const links = Array.isArray(basics.links) ? basics.links : [];
 
-    const contacts = [basics.location, basics.email, ...links.map((l) => l?.url).filter(Boolean)].filter(
-      Boolean
-    );
+    const contacts = [
+      basics.location,
+      basics.email,
+      basics.phone,
+      ...links.map((l) => l?.url).filter(Boolean),
+    ].filter(Boolean);
 
     const skills = Array.isArray(incoming?.skills) ? incoming.skills : [];
 
@@ -1086,6 +1292,10 @@
           log("styleSheets fallback[" + i + "] error:", e.message || e);
         }
       }
+    }
+    if (typeof window.__HB_PDF_FALLBACK_CSS === "string" && window.__HB_PDF_FALLBACK_CSS.length > 500) {
+      log("fallback: using embedded PDF styles (server export will have full CSS)");
+      return "<style>" + window.__HB_PDF_FALLBACK_CSS + "</style>";
     }
     if (isHttp) {
       log("fallback: using <link>, server may not load it from your origin");
@@ -1891,6 +2101,22 @@
 
   if (elTemplateSelect) {
     elTemplateSelect.addEventListener("change", () => {
+      syncFromEditor();
+      renderDoc(buildInternalFromForm());
+    });
+  }
+
+  if (elSplitBlocksToggle) {
+    try {
+      const stored = localStorage.getItem(SPLIT_BLOCKS_STORAGE_KEY);
+      elSplitBlocksToggle.checked = stored === "1";
+    } catch (e) { /* ignore */ }
+    elRoot.classList.toggle("doc--allow-block-split", elSplitBlocksToggle.checked);
+    elSplitBlocksToggle.addEventListener("change", () => {
+      elRoot.classList.toggle("doc--allow-block-split", elSplitBlocksToggle.checked);
+      try {
+        localStorage.setItem(SPLIT_BLOCKS_STORAGE_KEY, elSplitBlocksToggle.checked ? "1" : "0");
+      } catch (e) { /* ignore */ }
       syncFromEditor();
       renderDoc(buildInternalFromForm());
     });
