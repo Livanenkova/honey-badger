@@ -1,4 +1,4 @@
-:root{
+window.__HB_PDF_FALLBACK_CSS = `:root{
   --page-w: 210mm;
   --page-h: 297mm;
 
@@ -1178,3 +1178,4 @@ select:focus-visible{
   .doc.pdf-export .page{ page-break-after: always; }
   .doc.pdf-export .page:last-child{ page-break-after: auto; }
 }
+`;
