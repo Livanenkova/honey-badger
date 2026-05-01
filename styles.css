@@ -146,6 +146,37 @@ body{
   }
 }
 
+/* Desktop: optional "work view" similar to tablet/mobile */
+.app.app--desktop-workflow{
+  grid-template-columns: 1fr;
+  grid-template-areas: "tabs" "content";
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.app.app--desktop-workflow .app-tabs{
+  display: flex;
+  grid-area: tabs;
+}
+.app.app--desktop-workflow .panel{
+  position: static !important;
+  height: auto !important;
+  max-height: none !important;
+  grid-area: content;
+  overflow: visible !important;
+}
+.app.app--desktop-workflow .app-preview-wrap{
+  grid-area: content;
+  display: none !important;
+}
+.app.app--desktop-workflow.app--show-preview .panel{
+  display: none !important;
+}
+.app.app--desktop-workflow.app--show-preview .app-preview-wrap{
+  display: block !important;
+}
+
 .panel{
   background: #fff;
   border: 1px solid var(--line);
@@ -858,6 +889,39 @@ select:focus-visible{
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.chip--draggable{
+  cursor: grab;
+  user-select: none;
+}
+.chip--draggable:active{
+  cursor: grabbing;
+}
+.chip--dragging{
+  opacity: 0.6;
+}
+.chip--drag-over{
+  outline: 2px dashed var(--blue);
+  outline-offset: 2px;
+  position: relative;
+}
+.chip--insert-before::before,
+.chip--insert-after::after{
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  background: var(--blue);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+.chip--insert-before::before{
+  left: -6px;
+}
+.chip--insert-after::after{
+  right: -6px;
 }
 
 /* ================= ATS TEMPLATE ================= */

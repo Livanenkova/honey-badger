@@ -15,6 +15,7 @@
   const PAGE_BALANCE_SAFETY_PX = 14;
   const DRAFT_STORAGE_KEY = "honey-badger-draft";
   const SPLIT_BLOCKS_STORAGE_KEY = "honey-badger-split-blocks";
+  const DESKTOP_WORKVIEW_STORAGE_KEY = "honey-badger-desktop-work-view";
   const DRAFT_SAVE_DEBOUNCE_MS = 800;
 
   function debounce(fn, ms) {
@@ -63,6 +64,7 @@
     const elNameHint = document.getElementById("fNameHint");
     const elTemplateSelect = document.getElementById("templateSelect");
     const elSplitBlocksToggle = document.getElementById("splitBlocksToggle");
+    const elWorkViewToggleBtn = document.getElementById("workViewToggleBtn");
 
     let formDirty = false;
     function setDirty() {
@@ -857,7 +859,12 @@
     const competenciesMarkup = chips.length
       ? isAts
         ? listHtml(chips)
-        : chips.map((t) => `<span class="chip">${esc(t)}</span>`).join("")
+        : chips
+            .map(
+              (t, idx) =>
+                `<span class="chip chip--draggable" draggable="true" data-core-chip-index="${idx}" title="${esc(window.t("hint.dragChip") || "Drag to reorder")}">${esc(t)}</span>`
+            )
+            .join("")
       : "";
 
     const page1 = `
@@ -893,7 +900,7 @@
             ? `
           <section class="section">
             ${sectionHeadFn(coreCompetenciesTitle)}
-            <div class="${isAts ? "ats-list-wrap" : "chips"}">${competenciesMarkup}</div>
+            <div class="${isAts ? "ats-list-wrap" : "chips chips--core-competencies"}">${competenciesMarkup}</div>
           </section>
         `
             : ""
@@ -2034,6 +2041,124 @@
       app.classList.add("app--show-preview");
       tabForm.setAttribute("aria-selected", "false");
       tabPreview.setAttribute("aria-selected", "true");
+    });
+  })();
+
+  (function initCoreCompetenciesDragDrop() {
+    if (!elRoot || !fChips) return;
+    let dragChip = null;
+    let dropBefore = false;
+
+    function clearChipDragMarks() {
+      elRoot
+        .querySelectorAll(".chip--drag-over, .chip--insert-before, .chip--insert-after")
+        .forEach((el) => el.classList.remove("chip--drag-over", "chip--insert-before", "chip--insert-after"));
+    }
+
+    function reorderCoreCompetencies(fromIdx, toIdx) {
+      const arr = linesFromBulletList(fChips.value);
+      if (
+        !Number.isInteger(fromIdx) ||
+        !Number.isInteger(toIdx) ||
+        fromIdx < 0 ||
+        toIdx < 0 ||
+        fromIdx >= arr.length ||
+        toIdx >= arr.length ||
+        fromIdx === toIdx
+      ) {
+        return;
+      }
+      const moved = arr.splice(fromIdx, 1)[0];
+      arr.splice(toIdx, 0, moved);
+      fChips.value = formatBulletList(arr);
+      setDirty();
+      debouncedSaveDraft();
+      renderDoc(buildInternalFromForm());
+    }
+
+    elRoot.addEventListener("dragstart", (e) => {
+      const chip = e.target.closest(".chips--core-competencies .chip--draggable");
+      if (!chip) return;
+      dragChip = chip;
+      chip.classList.add("chip--dragging");
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", chip.dataset.coreChipIndex || "");
+      }
+    });
+
+    elRoot.addEventListener("dragover", (e) => {
+      const targetChip = e.target.closest(".chips--core-competencies .chip--draggable");
+      if (!dragChip || !targetChip || targetChip === dragChip) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      clearChipDragMarks();
+      targetChip.classList.add("chip--drag-over");
+      const rect = targetChip.getBoundingClientRect();
+      dropBefore = e.clientX < rect.left + rect.width / 2;
+      targetChip.classList.add(dropBefore ? "chip--insert-before" : "chip--insert-after");
+    });
+
+    elRoot.addEventListener("drop", (e) => {
+      const targetChip = e.target.closest(".chips--core-competencies .chip--draggable");
+      if (!dragChip || !targetChip) return;
+      e.preventDefault();
+      const fromIdx = Number(dragChip.dataset.coreChipIndex);
+      let toIdx = Number(targetChip.dataset.coreChipIndex);
+      if (!dropBefore) toIdx += 1;
+      if (fromIdx < toIdx) toIdx -= 1;
+      clearChipDragMarks();
+      dragChip.classList.remove("chip--dragging");
+      dragChip = null;
+      reorderCoreCompetencies(fromIdx, toIdx);
+    });
+
+    elRoot.addEventListener("dragend", () => {
+      elRoot.querySelectorAll(".chip--dragging").forEach((el) => el.classList.remove("chip--dragging"));
+      clearChipDragMarks();
+      dragChip = null;
+      dropBefore = false;
+    });
+  })();
+
+  (function initDesktopWorkView() {
+    const app = document.getElementById("appRoot");
+    const tabForm = document.getElementById("tabForm");
+    const tabPreview = document.getElementById("tabPreview");
+    if (!app || !tabForm || !tabPreview || !elWorkViewToggleBtn) return;
+
+    let enabled = false;
+    try {
+      enabled = localStorage.getItem(DESKTOP_WORKVIEW_STORAGE_KEY) === "1";
+    } catch (e) { /* ignore */ }
+
+    app.classList.toggle("app--desktop-workflow", enabled);
+    if (enabled) {
+      // Default to editing view.
+      app.classList.remove("app--show-preview");
+      tabForm.setAttribute("aria-selected", "true");
+      tabPreview.setAttribute("aria-selected", "false");
+    }
+
+    elWorkViewToggleBtn.addEventListener("click", () => {
+      enabled = !enabled;
+      app.classList.toggle("app--desktop-workflow", enabled);
+
+      try {
+        localStorage.setItem(DESKTOP_WORKVIEW_STORAGE_KEY, enabled ? "1" : "0");
+      } catch (e) { /* ignore */ }
+
+      if (!enabled) {
+        app.classList.remove("app--show-preview");
+        tabForm.setAttribute("aria-selected", "true");
+        tabPreview.setAttribute("aria-selected", "false");
+        return;
+      }
+
+      // When switching on, default to editing view.
+      app.classList.remove("app--show-preview");
+      tabForm.setAttribute("aria-selected", "true");
+      tabPreview.setAttribute("aria-selected", "false");
     });
   })();
 
