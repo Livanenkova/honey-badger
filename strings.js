@@ -90,6 +90,7 @@
         experience: "PROFESSIONAL EXPERIENCE",
         education: "EDUCATION",
         projects: "SELECTED PRODUCT PROJECTS",
+        continuedSuffix: " (continued)",
       },
       sectionTitleLabel: {
         profile: "Profile",
@@ -234,6 +235,7 @@
         experience: "ОПЫТ РАБОТЫ",
         education: "ОБРАЗОВАНИЕ",
         projects: "ПРОЕКТЫ",
+        continuedSuffix: " (продолжение)",
       },
       sectionTitleLabel: {
         profile: "О себе",

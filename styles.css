@@ -1056,6 +1056,17 @@ select:focus-visible{
   color: #555;
 }
 
+.section--continued .section__title{
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.section--continued .section__line{
+  display: none;
+}
+
 .doc.doc--allow-block-split .expBlock--continued .exp__role{
   font-size: 14px;
   font-weight: 600;
