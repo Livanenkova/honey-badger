@@ -605,6 +605,75 @@
     sectionEl.insertBefore(p, sectionEl.firstChild);
   }
 
+  function markSectionAsContinued(sectionEl) {
+    if (!sectionEl || !sectionEl.classList || !sectionEl.classList.contains("section--continued")) return;
+    const titleEl = sectionEl.querySelector(".section__title");
+    if (!titleEl) return;
+    const suffix = typeof window.t === "function" ? window.t("section.continuedSuffix") : " (continued)";
+    if (!suffix) return;
+    const raw = (titleEl.textContent || "").trim();
+    if (!raw) return;
+    if (raw.includes(suffix.trim())) return;
+    titleEl.textContent = raw + suffix;
+  }
+
+  function getSectionContinuationSuffix() {
+    return typeof window.t === "function" ? window.t("section.continuedSuffix") : " (continued)";
+  }
+
+  function getSectionBaseTitle(title) {
+    const raw = String(title || "").trim();
+    if (!raw) return "";
+    const suffix = getSectionContinuationSuffix();
+    if (suffix && raw.endsWith(suffix)) {
+      return raw.slice(0, Math.max(0, raw.length - suffix.length)).trim();
+    }
+    return raw.replace(/\s+\((continued|продолжение)\)\s*$/i, "").trim();
+  }
+
+  function clearSectionContinuedMark(sectionEl) {
+    if (!sectionEl || !sectionEl.classList) return;
+    sectionEl.classList.remove("section--continued");
+    const titleEl = sectionEl.querySelector(".section__title");
+    if (!titleEl) return;
+    titleEl.textContent = getSectionBaseTitle(titleEl.textContent || "");
+  }
+
+  function markAllSectionContinuations(rootEl) {
+    if (!rootEl || !rootEl.querySelectorAll) return;
+    const sections = Array.from(rootEl.querySelectorAll(".page .section"));
+    sections.forEach((sectionEl, idx) => {
+      if (!sectionEl.classList.contains("section--continued")) return;
+      const titleEl = sectionEl.querySelector(".section__title");
+      const listEl = sectionEl.querySelector(".list");
+      if (!titleEl || !listEl || !listEl.children.length) {
+        clearSectionContinuedMark(sectionEl);
+        return;
+      }
+
+      const baseTitle = getSectionBaseTitle(titleEl.textContent || "");
+      if (!baseTitle) {
+        clearSectionContinuedMark(sectionEl);
+        return;
+      }
+
+      const hasPreviousPart = sections.slice(0, idx).some((prev) => {
+        const prevTitle = prev.querySelector(".section__title");
+        const prevList = prev.querySelector(".list");
+        if (!prevTitle || !prevList || !prevList.children.length) return false;
+        const prevBaseTitle = getSectionBaseTitle(prevTitle.textContent || "");
+        return prevBaseTitle === baseTitle;
+      });
+
+      if (!hasPreviousPart) {
+        clearSectionContinuedMark(sectionEl);
+        return;
+      }
+
+      markSectionAsContinued(sectionEl);
+    });
+  }
+
   function isElementOverflowingPage(pageEl, element) {
     if (!pageEl || !element) return false;
     return element.getBoundingClientRect().bottom > getEffectivePageBottomPx(pageEl);
@@ -613,7 +682,10 @@
   function moveOverflowListItemsToNextPage(pageEl, nextPageEl) {
     if (!getSplitBlocksEnabled()) return false;
     const block = pageEl && pageEl.lastElementChild;
-    if (!block || !block.matches || !block.matches(".expBlock")) return false;
+    if (!block || !block.matches) return false;
+    const isExperienceBlock = block.matches(".expBlock");
+    const isSplittableSection = block.matches(".section") && !isExperienceBlock;
+    if (!isExperienceBlock && !isSplittableSection) return false;
     if (!isElementOverflowingPage(pageEl, block)) return false;
 
     const list = block.querySelector(".list");
@@ -622,21 +694,30 @@
     if (items.length < 2) return false;
 
     const continuation = block.cloneNode(true);
-    continuation.classList.add("expBlock--continued");
-    continuation.classList.remove("section--divider");
+    if (isExperienceBlock) {
+      continuation.classList.add("expBlock--continued");
+      continuation.classList.remove("section--divider");
+    } else {
+      continuation.classList.add("section--continued");
+      markSectionAsContinued(continuation);
+    }
     const continuationList = continuation.querySelector(".list");
     if (!continuationList) return false;
     continuationList.innerHTML = "";
 
     let moved = 0;
-    while (list.children.length > 1 && isElementOverflowingPage(pageEl, block)) {
+    while (list.children.length > 0 && isElementOverflowingPage(pageEl, block)) {
       const li = list.lastElementChild;
       continuationList.insertBefore(li, continuationList.firstElementChild);
       moved++;
     }
 
     if (moved === 0) return false;
-    addExperienceContinuationLabel(continuation);
+    if (!list.children.length) {
+      list.remove();
+      if (isSplittableSection) block.remove();
+    }
+    if (isExperienceBlock) addExperienceContinuationLabel(continuation);
     nextPageEl.insertBefore(continuation, nextPageEl.firstElementChild);
     return true;
   }
@@ -644,7 +725,10 @@
   function splitBlockToFitCurrentPage(blockEl, currentPageEl, nextPageEl) {
     if (!getSplitBlocksEnabled()) return false;
     if (!blockEl || !currentPageEl || !nextPageEl) return false;
-    if (!blockEl.matches || !blockEl.matches(".expBlock")) return false;
+    if (!blockEl.matches) return false;
+    const isExperienceBlock = blockEl.matches(".expBlock");
+    const isSplittableSection = blockEl.matches(".section") && !isExperienceBlock;
+    if (!isExperienceBlock && !isSplittableSection) return false;
     if (!isElementOverflowingPage(currentPageEl, blockEl)) return false;
 
     const list = blockEl.querySelector(".list");
@@ -653,14 +737,19 @@
     if (items.length < 2) return false;
 
     const continuation = blockEl.cloneNode(true);
-    continuation.classList.add("expBlock--continued");
-    continuation.classList.remove("section--divider");
+    if (isExperienceBlock) {
+      continuation.classList.add("expBlock--continued");
+      continuation.classList.remove("section--divider");
+    } else {
+      continuation.classList.add("section--continued");
+      markSectionAsContinued(continuation);
+    }
     const continuationList = continuation.querySelector(".list");
     if (!continuationList) return false;
     continuationList.innerHTML = "";
 
     let moved = 0;
-    while (list.children.length > 1 && isElementOverflowingPage(currentPageEl, blockEl)) {
+    while (list.children.length > 0 && isElementOverflowingPage(currentPageEl, blockEl)) {
       const li = list.lastElementChild;
       continuationList.insertBefore(li, continuationList.firstElementChild);
       moved++;
@@ -673,7 +762,11 @@
       return false;
     }
 
-    addExperienceContinuationLabel(continuation);
+    if (!list.children.length) {
+      list.remove();
+      if (isSplittableSection) blockEl.remove();
+    }
+    if (isExperienceBlock) addExperienceContinuationLabel(continuation);
     nextPageEl.insertBefore(continuation, nextPageEl.firstElementChild);
     return true;
   }
@@ -751,9 +844,57 @@
 
     splitPage2IntoPage3();
     ensureNoPageOverflows();
+    rebalanceAllPagePairs();
+    ensureNoPageOverflows();
     const pageCount = elRoot.querySelectorAll(".page").length;
     elRoot.classList.toggle("doc--two-pages", pageCount === 2);
     elRoot.classList.toggle("doc--multi-pages", pageCount >= 3);
+  }
+
+  function rebalanceAllPagePairs() {
+    const MAX_PASSES = 20;
+    for (let pass = 0; pass < MAX_PASSES; pass++) {
+      let changed = false;
+      const pages = Array.from(elRoot.querySelectorAll(".page"));
+      if (pages.length < 2) break;
+
+      for (let i = 0; i < pages.length - 1; i++) {
+        const currentPage = pages[i];
+        const nextPage = pages[i + 1];
+        const appendTarget =
+          i === 0
+            ? currentPage.querySelector(".experience-container") || currentPage
+            : currentPage;
+
+        while (nextPage.firstElementChild) {
+          const candidate = nextPage.firstElementChild;
+          appendTarget.appendChild(candidate);
+
+          if (isElementOverflowingPage(currentPage, candidate)) {
+            if (splitBlockToFitCurrentPage(candidate, currentPage, nextPage)) {
+              changed = true;
+            } else {
+              nextPage.insertBefore(candidate, nextPage.firstElementChild);
+            }
+            break;
+          }
+
+          changed = true;
+        }
+
+        if (nextPage.children.length === 0) {
+          const prev = nextPage.previousElementSibling;
+          if (prev && prev.classList && prev.classList.contains("page-break-preview")) prev.remove();
+          nextPage.remove();
+          changed = true;
+          break;
+        }
+      }
+
+      if (!changed) break;
+    }
+    mergeSamePageExpContinuations(elRoot);
+    markAllSectionContinuations(elRoot);
   }
 
   function splitPage2IntoPage3() {
