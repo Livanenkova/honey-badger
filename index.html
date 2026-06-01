@@ -30,7 +30,6 @@
     <button id="renderBtn" type="button" data-i18n="button.generate" data-i18n-title="hint.generate" title="Update the CV preview with current form data.">Generate</button>
     <button id="resetBtn" type="button" data-i18n="button.reset" data-i18n-title="hint.reset" title="Clear all fields and start over.">Reset</button>
     <button id="downloadJsonBtn" type="button" data-i18n="button.downloadJson" data-i18n-title="hint.downloadJson" title="Download your CV data as a JSON file.">Download JSON</button>
-    <button id="uploadJsonBtn" type="button" data-i18n="button.uploadJson" data-i18n-title="hint.uploadJson" title="Upload a JSON file to load into the form.">Upload JSON</button>
     <button id="printBtn" type="button" data-i18n="button.exportPdf" data-i18n-title="hint.exportPdf" title="Save the CV as a PDF file.">Export PDF</button>
     <div class="toolbar__locale" aria-label="Language">
       <label for="localeSelect" class="visually-hidden">Language</label>
@@ -59,6 +58,7 @@
     <div class="toolbar__import-row">
       <label class="toolbar__import-label" for="fJsonPaste" data-i18n="label.importJson">Import JSON</label>
       <button id="applyJsonBtn" class="mini-btn" type="button" data-i18n="button.applyJson" data-i18n-title="hint.applyJson" title="Load the pasted JSON into the form.">Apply JSON</button>
+      <button id="importJsonFileBtn" class="mini-btn" type="button" data-i18n="button.chooseJsonFile" data-i18n-title="hint.uploadJson" title="Upload a JSON file to load into the form.">Choose file</button>
     </div>
     <textarea id="fJsonPaste" class="toolbar__import-area" data-i18n-placeholder="placeholder.pasteJson" aria-describedby="import-hint" aria-errormessage="jsonError" aria-invalid="false"></textarea>
   </div>
@@ -116,6 +116,10 @@
     <div class="field field--with-title-edit">
       <div class="field__label-row">
         <label for="fChips" data-i18n="label.coreCompetencies">Core Competencies (one per line)</label>
+        <select id="coreCompetenciesDisplay" class="section-display-select" data-i18n-aria-label="aria.coreCompetenciesDisplay">
+          <option value="chips" data-i18n="display.chips">Chips</option>
+          <option value="dots" data-i18n="display.dots">Dots</option>
+        </select>
         <button type="button" class="mini-btn edit-section-title-btn" data-section="coreCompetencies" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
       </div>
       <input type="text" id="fCoreCompetenciesTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Core Competencies"/>
@@ -123,6 +127,22 @@
       <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
       <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
       <textarea id="fChips" data-i18n-placeholder="placeholder.coreCompetencies"></textarea>
+    </div>
+
+    <div class="field field--with-title-edit">
+      <div class="field__label-row">
+        <label for="fTools" data-i18n="label.tools">Tools (one per line)</label>
+        <select id="toolsDisplay" class="section-display-select" data-i18n-aria-label="aria.toolsDisplay">
+          <option value="dots" data-i18n="display.dots">Dots</option>
+          <option value="chips" data-i18n="display.chips">Chips</option>
+        </select>
+        <button type="button" class="mini-btn edit-section-title-btn" data-section="tools" data-i18n="button.editHeading" aria-label="Edit section title">Edit heading</button>
+      </div>
+      <input type="text" id="fToolsTitle" class="section-title-inline" autocomplete="off" hidden data-i18n-placeholder="hint.saveHeading" aria-label="Section title: Tools"/>
+      <button type="button" class="mini-btn section-title-done-btn" hidden data-i18n-aria-label="aria.doneLabel"><span class="section-title-done-btn__label" data-i18n="button.done">Save</span></button>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.saveHeading">Tap outside or click Save to save</p>
+      <p class="section-title-inline-hint" hidden data-i18n="hint.headingUpdatesOnGenerate">Preview updates when you click Generate.</p>
+      <textarea id="fTools" data-i18n-placeholder="placeholder.tools"></textarea>
     </div>
 
     <div class="field field--with-title-edit">
@@ -192,7 +212,7 @@
   <div class="modal__backdrop"></div>
   <div class="modal__box">
     <h2 id="exportPdfModalTitle" class="modal__title" data-i18n="exportPdf.title">Save PDF</h2>
-    <p class="modal__hint hint exportPdfTextHint" data-i18n="exportPdf.textLayerHint">Recommended: opens print dialog. Choose «Save as PDF». Text will be copyable and ATS-friendly.</p>
+    <p class="modal__hint hint exportPdfTextHint" data-i18n="exportPdf.textLayerHint">Download PDF matches the preview. Use ATS PDF for the safest applicant tracking system parsing.</p>
     <div class="field">
       <label for="exportPdfFilename" data-i18n="exportPdf.filenameLabel">File name</label>
       <input type="text" id="exportPdfFilename" class="modal__input" value="CV.pdf" autocomplete="off"/>
@@ -200,9 +220,8 @@
     </div>
     <div class="modal__actions modal__actions--wrap">
       <button type="button" id="exportPdfCancel" class="mini-btn" data-i18n="exportPdf.cancel">Cancel</button>
-      <button type="button" id="exportPdfSaveServer" class="mini-btn" data-i18n="exportPdf.saveServer" title="Server-rendered HTML PDF with full design and text layer">Download server PDF</button>
-      <button type="button" id="exportPdfSaveAts" class="mini-btn mini-btn--ats" data-i18n="exportPdf.saveAts" title="One-click, text layer, ATS-friendly layout">Download ATS PDF</button>
-      <button type="button" id="exportPdfSave" data-i18n="exportPdf.save">Save (print → PDF)</button>
+      <button type="button" id="exportPdfSaveAts" class="mini-btn mini-btn--ats" data-i18n="exportPdf.saveAts" title="Plain text-layer PDF for ATS parsing">Download ATS PDF</button>
+      <button type="button" id="exportPdfSave" data-i18n="exportPdf.save" title="Preview-matching PDF rendered by headless Chrome">Download PDF</button>
     </div>
   </div>
 </div>
@@ -211,9 +230,6 @@
 <script src="pdf-fallback-styles.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/pdfmake.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.10/build/vfs_fonts.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
