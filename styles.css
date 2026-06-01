@@ -233,6 +233,21 @@ body{
 .field--exp-heading .field__label-row strong{
   font-size: inherit;
 }
+.field__label-row > .section-display-select,
+.field select.section-display-select{
+  flex: 0 0 auto;
+  width: auto !important;
+  max-width: 96px;
+  min-width: 76px;
+  height: 26px;
+  padding: 2px 22px 2px 8px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  color: var(--text);
+  background-color: #fff;
+  cursor: pointer;
+}
 .section-title-inline{
   display: block;
   width: 100%;
@@ -779,6 +794,24 @@ select:focus-visible{
   font-weight: 500;
 }
 
+.language-line{
+  margin: 8px 0 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.language-line span{
+  color: var(--muted);
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .header__right{
   text-align: right;
   min-width: 230px;
@@ -811,6 +844,26 @@ select:focus-visible{
 
 .section{
   margin-top: 18px;
+}
+
+.section--tools{
+  margin-top: 10px;
+}
+
+.section--tools .section__head{
+  margin-bottom: 6px;
+}
+
+.section--projects{
+  margin-top: 12px;
+}
+
+.section--projects .section__head{
+  margin-bottom: 7px;
+}
+
+.section--projects .list li{
+  margin-bottom: 4px;
 }
 
 .section__head{
@@ -924,6 +977,18 @@ select:focus-visible{
   right: -6px;
 }
 
+.section-inline-list{
+  margin: 0 0 0 8px;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.52;
+}
+
+.section-inline-list--tools{
+  margin-left: 8px;
+}
+
 /* ================= ATS TEMPLATE ================= */
 /* ATS-friendly: single column, standard fonts, minimal styling for better parsing.
    Best practices: single column, 10–12pt body, standard fonts (Arial/Helvetica),
@@ -955,9 +1020,22 @@ select:focus-visible{
 }
 
 .doc.doc--ats .headline,
+.doc.doc--ats .language-line,
 .doc.doc--ats .contact{
   color: #333;
   font-size: 11pt;
+}
+
+.doc.doc--ats .language-line span{
+  color: #000;
+  font-size: 11pt;
+  letter-spacing: 0;
+}
+
+.doc.doc--ats .language-line{
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: none;
 }
 
 .doc.doc--ats .section__head--ats{
