@@ -2,15 +2,12 @@
   "use strict";
 
   const REQUIRED_IDS = [
-    "cvRoot", "renderBtn", "printBtn", "downloadJsonBtn", "uploadJsonBtn",
+    "cvRoot", "renderBtn", "printBtn", "downloadJsonBtn",
     "jsonFileInput", "resetBtn", "fName", "fHeadline", "fContacts", "fProfile",
-    "fImpact", "fChips", "fEdu", "fProjects", "addExpBtn", "expList",
+    "fImpact", "fChips", "fTools", "fEdu", "fProjects", "addExpBtn", "expList",
   ];
 
   const INPUT_DEBOUNCE_MS = 120;
-  const PDF_CANVAS_SCALE = 2;
-  const PDF_JPEG_QUALITY = 0.98;
-  const PDF_PAGE_DELAY_MS = 150;
   /** Запас в px при балансировке страниц, чтобы контент не обрезался в PDF (шрифты/субпиксель). */
   const PAGE_BALANCE_SAFETY_PX = 14;
   const DRAFT_STORAGE_KEY = "honey-badger-draft";
@@ -37,21 +34,25 @@
     const elRender = document.getElementById("renderBtn");
     const elPrint = document.getElementById("printBtn");
     const elDownloadJson = document.getElementById("downloadJsonBtn");
-    const elUploadJson = document.getElementById("uploadJsonBtn");
     const elJsonFileInput = document.getElementById("jsonFileInput");
     const elReset = document.getElementById("resetBtn");
     const fJsonPaste = document.getElementById("fJsonPaste");
     const elApplyJson = document.getElementById("applyJsonBtn");
+    const elImportJsonFile = document.getElementById("importJsonFileBtn");
     const fName = document.getElementById("fName");
     const fHeadline = document.getElementById("fHeadline");
     const fContacts = document.getElementById("fContacts");
     const fProfile = document.getElementById("fProfile");
     const fImpact = document.getElementById("fImpact");
     const fChips = document.getElementById("fChips");
+    const fTools = document.getElementById("fTools");
+    const coreCompetenciesDisplay = document.getElementById("coreCompetenciesDisplay");
+    const toolsDisplay = document.getElementById("toolsDisplay");
     const fLanguages = document.getElementById("fLanguages");
     const fProfileTitle = document.getElementById("fProfileTitle");
     const fKeyImpactTitle = document.getElementById("fKeyImpactTitle");
     const fCoreCompetenciesTitle = document.getElementById("fCoreCompetenciesTitle");
+    const fToolsTitle = document.getElementById("fToolsTitle");
     const fExpTitle = document.getElementById("fExpTitle");
     const fEducationTitle = document.getElementById("fEducationTitle");
     const fProjectsTitle = document.getElementById("fProjectsTitle");
@@ -96,6 +97,7 @@
       [fProfileTitle, "profile", "profileTitle"],
       [fKeyImpactTitle, "keyImpact", "keyImpactTitle"],
       [fCoreCompetenciesTitle, "coreCompetencies", "coreCompetenciesTitle"],
+      [fToolsTitle, "tools", "toolsTitle"],
       [fExpTitle, "experience", "experienceTitle"],
       [fEducationTitle, "education", "educationTitle"],
       [fProjectsTitle, "projects", "projectsTitle"],
@@ -152,6 +154,12 @@
       '"': "&quot;",
       "'": "&#039;",
     }[m]));
+  }
+
+  function toTitleCase(s) {
+    return String(s || "")
+      .toLowerCase()
+      .replace(/(^|\s)\S/g, (m) => m.toUpperCase());
   }
 
   /** Returns mailto:, https: or tel: URL for a contact line, or null if not a link. */
@@ -236,6 +244,17 @@
   function listHtml(items) {
     if (!items?.length) return "";
     return `<ul class="list">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
+  }
+
+  function inlineListHtml(items, className = "inline-list") {
+    const list = (items || []).map((i) => String(i || "").trim()).filter(Boolean);
+    if (!list.length) return "";
+    return `<p class="${className}">${list.map(esc).join(" · ")}</p>`;
+  }
+
+  function getDisplayMode(el, fallback = "dots") {
+    const value = el && typeof el.value === "string" ? el.value : fallback;
+    return value === "chips" || value === "dots" ? value : fallback;
   }
 
   function normalizeTextBullets(arr) {
@@ -507,6 +526,7 @@
   }
   onBulletListEnter(fImpact);
   onBulletListEnter(fChips);
+  onBulletListEnter(fTools);
   onBulletListEnter(fLanguages);
 
   (function initExpandableFields() {
@@ -544,6 +564,9 @@
       profile: { all: fProfile.value.trim() },
       keyImpact: linesFromBulletList(fImpact.value).map((t) => ({ text: t, tags: ["all"] })),
       coreCompetencies: linesFromBulletList(fChips.value).map((t) => ({ text: t, tags: ["all"] })),
+      coreCompetenciesDisplay: getDisplayMode(coreCompetenciesDisplay, "chips"),
+      tools: linesFromBulletList(fTools.value).map((t) => ({ text: t, tags: ["all"] })),
+      toolsDisplay: getDisplayMode(toolsDisplay, "dots"),
       languages: linesFromBulletList(fLanguages?.value || "").map((t) => ({ text: t, tags: ["all"] })),
       ...Object.fromEntries(
         SECTION_TITLE_FIELDS.map(([el, key, dataKey]) => [dataKey, getSectionTitle(el, key)])
@@ -565,15 +588,12 @@
     }));
     const edu = d.education || [];
     const proj = d.projects || [];
-    const lang = (d.languages || []).map((x) => (typeof x === "string" ? x : x.text));
     const eduTitle = (d.educationTitle && d.educationTitle.trim()) || (typeof window.t === "function" ? window.t("section.education") : "EDUCATION");
     const projTitle = (d.projectsTitle && d.projectsTitle.trim()) || (typeof window.t === "function" ? window.t("section.projects") : "PROJECTS");
-    const langTitle = (d.languagesTitle && d.languagesTitle.trim()) || (typeof window.t === "function" ? window.t("section.languages") : "LANGUAGES");
     return [
       ...expBlocks,
       ...(edu.length ? [{ type: "section", title: eduTitle, bullets: edu.map((t) => ({ text: t, tags: ["all"] })) }] : []),
-      ...(proj.length ? [{ type: "section", title: projTitle, bullets: proj.map((t) => ({ text: t, tags: ["all"] })) }] : []),
-      ...(lang.length ? [{ type: "languages", title: langTitle, items: lang }] : []),
+      ...(proj.length ? [{ type: "section", title: projTitle, className: "section--projects", bullets: proj.map((t) => ({ text: t, tags: ["all"] })) }] : []),
     ];
   }
 
@@ -603,6 +623,11 @@
       p.setAttribute("aria-label", window.t("experience.continuedAria"));
     }
     sectionEl.insertBefore(p, sectionEl.firstChild);
+  }
+
+  function removeExperienceContinuationSummary(sectionEl) {
+    if (!sectionEl || !sectionEl.classList || !sectionEl.classList.contains("expBlock")) return;
+    sectionEl.querySelectorAll(".body--tight").forEach((el) => el.remove());
   }
 
   function markSectionAsContinued(sectionEl) {
@@ -697,6 +722,7 @@
     if (isExperienceBlock) {
       continuation.classList.add("expBlock--continued");
       continuation.classList.remove("section--divider");
+      removeExperienceContinuationSummary(continuation);
     } else {
       continuation.classList.add("section--continued");
       markSectionAsContinued(continuation);
@@ -713,6 +739,12 @@
     }
 
     if (moved === 0) return false;
+    if (isExperienceBlock && list.children.length === 0) {
+      while (continuationList.firstElementChild) {
+        list.appendChild(continuationList.firstElementChild);
+      }
+      return false;
+    }
     if (!list.children.length) {
       list.remove();
       if (isSplittableSection) block.remove();
@@ -740,6 +772,7 @@
     if (isExperienceBlock) {
       continuation.classList.add("expBlock--continued");
       continuation.classList.remove("section--divider");
+      removeExperienceContinuationSummary(continuation);
     } else {
       continuation.classList.add("section--continued");
       markSectionAsContinued(continuation);
@@ -756,6 +789,12 @@
     }
 
     if (moved === 0 || isElementOverflowingPage(currentPageEl, blockEl)) {
+      while (continuationList.firstElementChild) {
+        list.appendChild(continuationList.firstElementChild);
+      }
+      return false;
+    }
+    if (isExperienceBlock && list.children.length === 0) {
       while (continuationList.firstElementChild) {
         list.appendChild(continuationList.firstElementChild);
       }
@@ -965,6 +1004,62 @@
     mergeSamePageExpContinuations(elRoot);
   }
 
+  function createPageAfter(pageEl, pageNum) {
+    const breakEl = document.createElement("div");
+    breakEl.className = "page-break-preview";
+    breakEl.setAttribute("aria-hidden", "true");
+    breakEl.innerHTML = `<span>— Page ${pageNum} —</span>`;
+    const newPage = document.createElement("section");
+    newPage.className = "page";
+    pageEl.after(breakEl, newPage);
+    return newPage;
+  }
+
+  function getNextPageForOverflow(pageEl, pageIndex) {
+    let next = pageEl.nextElementSibling;
+    if (next && next.classList && next.classList.contains("page-break-preview")) {
+      next = next.nextElementSibling;
+    }
+    if (next && next.classList && next.classList.contains("page")) return next;
+    return createPageAfter(pageEl, pageIndex + 2);
+  }
+
+  function ensureAllPagesDoNotOverflow(rootEl = elRoot) {
+    if (!rootEl || !rootEl.querySelectorAll) return;
+    const MAX_PASSES = 60;
+    for (let pass = 0; pass < MAX_PASSES; pass++) {
+      let changed = false;
+      const pages = Array.from(rootEl.querySelectorAll(".page"));
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        let guard = 0;
+        while (
+          page.lastElementChild &&
+          isElementOverflowingPage(page, page.lastElementChild) &&
+          guard < 80
+        ) {
+          const nextPage = getNextPageForOverflow(page, i);
+          if (moveOverflowListItemsToNextPage(page, nextPage)) {
+            changed = true;
+            guard++;
+            continue;
+          }
+          const child = page.lastElementChild;
+          nextPage.insertBefore(child, nextPage.firstElementChild);
+          changed = true;
+          guard++;
+        }
+      }
+      removeEmptyPages(rootEl);
+      mergeSamePageExpContinuations(rootEl);
+      markAllSectionContinuations(rootEl);
+      if (!changed) break;
+    }
+    const pageCount = rootEl.querySelectorAll(".page").length;
+    rootEl.classList.toggle("doc--two-pages", pageCount === 2);
+    rootEl.classList.toggle("doc--multi-pages", pageCount >= 3);
+  }
+
   // ---------- RENDER ----------
   function renderDoc(d) {
     const template = (elTemplateSelect && elTemplateSelect.value) || "default";
@@ -973,10 +1068,14 @@
 
     const impacts = (d.keyImpact || []).map((x) => x.text);
     const chips = (d.coreCompetencies || []).map((x) => x.text);
+    const tools = (d.tools || []).map((x) => (typeof x === "string" ? x : x.text));
+    const languages = (d.languages || []).map((x) => (typeof x === "string" ? x : x.text)).filter(Boolean);
 
     const profileTitle = (d.profileTitle && d.profileTitle.trim()) || (typeof window.t === "function" ? window.t("section.profile") : "PROFILE");
     const keyImpactTitle = (d.keyImpactTitle && d.keyImpactTitle.trim()) || (typeof window.t === "function" ? window.t("section.keyImpact") : "KEY IMPACT");
     const coreCompetenciesTitle = (d.coreCompetenciesTitle && d.coreCompetenciesTitle.trim()) || (typeof window.t === "function" ? window.t("section.coreCompetencies") : "CORE COMPETENCIES");
+    const toolsTitle = (d.toolsTitle && d.toolsTitle.trim()) || (typeof window.t === "function" ? window.t("section.tools") : "TOOLS");
+    const languagesTitle = (d.languagesTitle && d.languagesTitle.trim()) || (typeof window.t === "function" ? window.t("section.languages") : "LANGUAGES");
     const page1ExpTitle = (d.experienceTitle && d.experienceTitle.trim()) || (typeof window.t === "function" ? window.t("section.experience") : "PROFESSIONAL EXPERIENCE");
     const blocks = dataToBlocks(d);
     const hasPage2 = blocks.length > 0;
@@ -988,6 +1087,8 @@
       (d.contacts || []).length ||
       impacts.length ||
       chips.length ||
+      tools.length ||
+      languages.length ||
       blocks.length;
 
     if (!hasContent) {
@@ -997,8 +1098,12 @@
     }
 
     const sectionHeadFn = isAts ? sectionHeadAts : sectionHead;
+    const coreDisplay = isAts ? "dots" : (d.coreCompetenciesDisplay === "dots" ? "dots" : "chips");
+    const toolsDisplayMode = isAts ? "dots" : (d.toolsDisplay === "chips" ? "chips" : "dots");
     const competenciesMarkup = chips.length
-      ? isAts
+      ? coreDisplay === "dots"
+        ? inlineListHtml(chips, "section-inline-list")
+        : isAts
         ? listHtml(chips)
         : chips
             .map(
@@ -1014,6 +1119,11 @@
           <div class="header__left">
             <h1 class="name">${esc(d.name || "")}</h1>
             <p class="headline">${esc(d.headline || "")}</p>
+            ${
+              languages.length
+                ? `<p class="language-line"><span>${esc(toTitleCase(languagesTitle))}:</span> ${languages.map(esc).join(" · ")}</p>`
+                : ""
+            }
           </div>
           <div class="header__right">
             ${(d.contacts || []).map((c) => `<div class="contact">${contactToLinkHtml(c)}</div>`).join("")}
@@ -1041,7 +1151,26 @@
             ? `
           <section class="section">
             ${sectionHeadFn(coreCompetenciesTitle)}
-            <div class="${isAts ? "ats-list-wrap" : "chips chips--core-competencies"}">${competenciesMarkup}</div>
+            ${
+              coreDisplay === "chips"
+                ? `<div class="chips chips--core-competencies">${competenciesMarkup}</div>`
+                : competenciesMarkup
+            }
+          </section>
+        `
+            : ""
+        }
+
+        ${
+          tools.length
+            ? `
+          <section class="section section--tools">
+            ${sectionHeadFn(toolsTitle)}
+            ${
+              toolsDisplayMode === "chips"
+                ? `<div class="chips chips--tools">${tools.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>`
+                : inlineListHtml(tools, isAts ? "body" : "section-inline-list section-inline-list--tools")
+            }
           </section>
         `
             : ""
@@ -1070,20 +1199,9 @@
               prev &&
               prev.type === "experience";
 
-            if (b.type === "languages" && Array.isArray(b.items)) {
-              const langContent = isAts
-                ? listHtml(b.items || [])
-                : `<div class="chips">${(b.items || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>`;
-              return `
-                <section class="section">
-                  ${sectionHeadBlockFn(b.title || "", "grey")}
-                  <div class="${isAts ? "ats-list-wrap" : ""}">${langContent}</div>
-                </section>
-              `;
-            }
             if (b.type === "section") {
               return `
-                <section class="section">
+                <section class="section ${esc(b.className || "")}">
                   ${sectionHeadBlockFn(b.title || "", "grey")}
                   ${listHtml(bullets)}
                 </section>
@@ -1141,6 +1259,7 @@
     ].filter(Boolean);
 
     const skills = Array.isArray(incoming?.skills) ? incoming.skills : [];
+    const toolsRaw = Array.isArray(incoming?.tools) ? incoming.tools : [];
 
     const expArr = Array.isArray(incoming?.experience) ? incoming.experience : [];
     const expMapped = expArr.map((r) => {
@@ -1191,6 +1310,7 @@
       profile: { all: incoming?.summary || "" },
       keyImpact: [],
       coreCompetencies: skills.map((t) => ({ text: t, tags: ["all"] })),
+      tools: toolsRaw.map((t) => (typeof t === "string" ? { text: t, tags: ["all"] } : { text: t?.text || "", tags: ["all"] })),
       languages,
       experienceTitle: window.t("section.experience"),
       experience,
@@ -1216,6 +1336,9 @@
 
     fImpact.value = formatBulletList(normalizeTextBullets(normalized.keyImpact));
     fChips.value = formatBulletList(normalizeTextBullets(normalized.coreCompetencies));
+    if (coreCompetenciesDisplay) coreCompetenciesDisplay.value = normalized.coreCompetenciesDisplay === "dots" ? "dots" : "chips";
+    fTools.value = formatBulletList(normalizeTextBullets(normalized.tools));
+    if (toolsDisplay) toolsDisplay.value = normalized.toolsDisplay === "chips" ? "chips" : "dots";
     if (fLanguages) {
       const lang = normalized.languages;
       fLanguages.value = formatBulletList(Array.isArray(lang) ? lang : []);
@@ -1303,9 +1426,7 @@
   const elExportPdfCancel = document.getElementById("exportPdfCancel");
   const elExportPdfSave = document.getElementById("exportPdfSave");
   const elExportPdfSaveAts = document.getElementById("exportPdfSaveAts");
-  const elExportPdfSaveServer = document.getElementById("exportPdfSaveServer");
 
-  // Server-side HTML→PDF endpoint (Vercel function)
   const SERVER_PDF_ENDPOINT = "https://pdf-server-beryl.vercel.app/api/render-cv";
 
   function openExportPdfModal() {
@@ -1351,6 +1472,39 @@
     return Promise.resolve();
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function waitForAnimationFrames(count = 2) {
+    return new Promise((resolve) => {
+      const step = () => {
+        count -= 1;
+        if (count <= 0) resolve();
+        else requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  function setExportButtonsDisabled(disabled) {
+    [elExportPdfSave, elExportPdfSaveAts, elExportPdfCancel].forEach((button) => {
+      if (button) button.disabled = disabled;
+    });
+  }
+
+  function showExportStatus(message) {
+    if (!elPreviewLive) return;
+    elPreviewLive.textContent = message;
+    elPreviewLive.removeAttribute("hidden");
+    elPreviewLive.classList.remove("visually-hidden");
+    setTimeout(() => {
+      elPreviewLive.textContent = "";
+      elPreviewLive.setAttribute("hidden", "");
+      elPreviewLive.classList.add("visually-hidden");
+    }, 6000);
+  }
+
   function removeEmptyPages(rootEl) {
     const pages = rootEl.querySelectorAll(".page");
     pages.forEach((p) => {
@@ -1363,7 +1517,7 @@
     return rootEl.querySelectorAll(".page");
   }
 
-  const PDF_DEBUG = true; // set false to disable [HB-PDF *] console logs
+  const PDF_DEBUG = false; // set true to debug [HB-PDF *] console logs
 
   /** Returns Promise of <style>...</style> or <link.../> for styles.css (works from file:// via styleSheets). */
   async function getAppCssStyleBlock() {
@@ -1482,84 +1636,75 @@
 </html>`;
   }
 
-  async function runPdfExportViaServer(filename, data) {
-    const log = PDF_DEBUG ? (...a) => console.log("[HB-PDF server]", ...a) : () => {};
-    if (!SERVER_PDF_ENDPOINT) {
-      log("no SERVER_PDF_ENDPOINT, using print");
-      runPdfExportAsPrint(elRoot, filename);
-      return;
+  async function postServerPdf(payload) {
+    const resp = await fetch(SERVER_PDF_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error("Server PDF failed with " + resp.status + (text ? ": " + text.slice(0, 200) : ""));
     }
+    return resp.blob();
+  }
+
+  async function runPdfExportViaServer(filename, data) {
     const formData = data || buildInternalFromForm();
+    const maxAttempts = 3;
     try {
-      log("start: endpoint:", SERVER_PDF_ENDPOINT);
+      setExportButtonsDisabled(true);
       elRoot.classList.add("pdf-export");
+      await waitForAnimationFrames(2);
       balancePages();
       ensureNoPageOverflows();
+      ensureAllPagesDoNotOverflow(elRoot);
+      await waitForAnimationFrames(2);
       const html = await buildServerPdfHtml(formData);
-      elRoot.classList.remove("pdf-export");
-      renderDoc(formData);
       const payload = { html, filename: sanitizePdfFilename(filename) };
-      const bodyLen = JSON.stringify(payload).length;
-      log("sending POST, body size:", bodyLen, "bytes, html length:", html.length);
-      const resp = await fetch(SERVER_PDF_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      log("response:", resp.status, resp.statusText, "Content-Type:", resp.headers.get("Content-Type"));
-      if (!resp.ok) {
-        const text = await resp.text();
-        log("error body:", text.slice(0, 500));
-        throw new Error("Server PDF failed with " + resp.status + (text ? ": " + text.slice(0, 200) : ""));
+
+      let lastError = null;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const blob = await postServerPdf(payload);
+          await savePdfBlob(blob, filename);
+          lastError = null;
+          break;
+        } catch (err) {
+          lastError = err;
+          if (attempt < maxAttempts) await sleep(900 * attempt);
+        }
       }
-      const blob = await resp.blob();
-      log("blob size:", blob.size, "bytes");
-      await savePdfBlob(blob, filename);
-      log("done, PDF saved");
+      if (lastError) throw lastError;
     } catch (err) {
       console.error("[HB-PDF server] FAILED:", err);
-      if (PDF_DEBUG && err && err.stack) console.error("[HB-PDF server] stack:", err.stack);
+      const fallback = typeof window.t === "function"
+        ? window.t("exportPdf.serverFailed")
+        : "Could not generate preview-matching PDF. Please try again.";
+      showExportStatus(fallback);
+    } finally {
       elRoot.classList.remove("pdf-export");
       renderDoc(formData);
-      const reason = err.message || (err && err.toString()) || "Unknown error";
-      const msg = typeof window.t === "function"
-        ? window.t("exportPdf.serverFailedFallback") + " (" + reason + ")"
-        : "Server PDF unavailable: " + reason + ". Opening print dialog.";
-      if (elPreviewLive) {
-        elPreviewLive.textContent = msg;
-        elPreviewLive.removeAttribute("hidden");
-        elPreviewLive.classList.remove("visually-hidden");
-        setTimeout(() => {
-          elPreviewLive.textContent = "";
-          elPreviewLive.setAttribute("hidden", "");
-          elPreviewLive.classList.add("visually-hidden");
-        }, 6000);
-      }
-      runPdfExportAsPrint(elRoot, filename);
+      setExportButtonsDisabled(false);
     }
   }
 
   /** @param {string} filename
-   *  @param {{ asImage?: boolean, asAts?: boolean, asDesign?: boolean }} [options]
-   *  asAts = pdfmake ATS PDF (text layer, plain),
-   *  default = print window (HTML + print dialog).
+   *  @param {{ asAts?: boolean }} [options]
+   *  asAts = pdfmake ATS PDF (text layer, plain).
+   *  default = preview-matching server PDF rendered by headless Chrome.
    */
   function runPdfExport(filename, options) {
     syncFromEditor();
     const data = buildInternalFromForm();
     renderDoc(data);
-    const el = elRoot;
     const asAts = options && options.asAts;
 
     if (asAts) {
       runPdfExportAsAts(data, filename);
       return;
     }
-    if (options && options.useServer) {
-      runPdfExportViaServer(filename, data);
-      return;
-    }
-    runPdfExportAsPrint(el, filename);
+    runPdfExportViaServer(filename, data);
   }
 
   /** One-click ATS PDF with real text layer (pdfmake). Plain layout, no blue/gray design. */
@@ -1577,7 +1722,20 @@
     const content = [];
 
     if (d.name) content.push({ text: d.name, style: "name", margin: [0, 0, 0, 2] });
-    if (d.headline) content.push({ text: d.headline, style: "headline", margin: [0, 0, 0, 10] });
+    if (d.headline) content.push({ text: d.headline, style: "headline", margin: [0, 0, 0, 4] });
+    if (Array.isArray(d.languages) && d.languages.length) {
+      const title = d.languagesTitle || "Languages";
+      content.push({
+        text: [
+          { text: String(title).toUpperCase() + ": ", bold: true },
+          { text: d.languages.map(bullet).join("  ·  ") },
+        ],
+        style: "headline",
+        margin: [0, 0, 0, 10],
+      });
+    } else if (d.headline) {
+      content[content.length - 1].margin = [0, 0, 0, 10];
+    }
     if (Array.isArray(d.contacts) && d.contacts.length) {
       const sep = { text: "  ·  " };
       const contactItems = d.contacts.flatMap((c, i) => {
@@ -1598,6 +1756,9 @@
     if (Array.isArray(d.coreCompetencies) && d.coreCompetencies.length)
       content.push(...section(d.coreCompetenciesTitle || "Core Competencies", { text: d.coreCompetencies.map(bullet).join("  ·  "), style: "body" }));
 
+    if (Array.isArray(d.tools) && d.tools.length)
+      content.push(...section(d.toolsTitle || "Tools", { text: d.tools.map(bullet).join("  ·  "), style: "body" }));
+
     const expTitle = d.experienceTitle || "Professional Experience";
     if (Array.isArray(d.experience) && d.experience.length) {
       content.push({ text: expTitle.toUpperCase(), style: "sectionHeader", margin: [0, 14, 0, 4] });
@@ -1617,9 +1778,6 @@
     if (Array.isArray(d.projects) && d.projects.length)
       content.push(...section(d.projectsTitle || "Selected Projects", { ul: d.projects }));
 
-    if (Array.isArray(d.languages) && d.languages.length)
-      content.push(...section(d.languagesTitle || "Languages", { ul: d.languages.map(bullet) }));
-
     const docDef = {
       pageSize: "A4",
       pageMargins: [50, 50, 50, 50],
@@ -1635,142 +1793,6 @@
       },
       content,
     };
-    try {
-      const pdf = pdfMake.createPdf(docDef);
-      pdf.getBlob((blob) => {
-        savePdfBlob(blob, filename).catch(() => {});
-      });
-    } catch (err) {
-      console.error(err);
-      runPdfExportAsPrint(elRoot, filename);
-    }
-  }
-
-  /** One-click Design PDF with text layer (pdfmake). Approximates default blue layout. */
-  function runPdfExportAsDesign(data, filename) {
-    if (typeof pdfMake === "undefined" || typeof pdfMake.createPdf !== "function") {
-      runPdfExportAsPrint(elRoot, filename);
-      return;
-    }
-    const d = data || buildInternalFromForm();
-    const bullet = (t) => (typeof t === "string" ? t : (t && t.text) || "");
-
-    const headerColumns = [];
-    const leftStack = [];
-    const rightStack = [];
-    if (d.name) leftStack.push({ text: d.name, style: "design_name" });
-    if (d.headline) leftStack.push({ text: d.headline, style: "design_headline", margin: [0, 4, 0, 0] });
-    if (Array.isArray(d.contacts) && d.contacts.length) {
-      rightStack.push({ text: d.contacts.join("\n"), style: "design_contacts" });
-    }
-    if (leftStack.length || rightStack.length) {
-      headerColumns.push({
-        columns: [
-          { width: "*", stack: leftStack },
-          { width: "auto", stack: rightStack, alignment: "right" },
-        ],
-        margin: [0, 0, 0, 14],
-      });
-    }
-
-    const section = (title) => ({
-      text: String(title || "").toUpperCase(),
-      style: "design_sectionHeader",
-      margin: [0, 18, 0, 6],
-    });
-
-    const content = [...headerColumns];
-
-    if (d.profile && d.profile.all) {
-      content.push(section(d.profileTitle || (typeof window.t === "function" ? window.t("section.profile") : "Profile")));
-      content.push({ text: d.profile.all, style: "design_body" });
-    }
-
-    if (Array.isArray(d.keyImpact) && d.keyImpact.length) {
-      content.push(section(d.keyImpactTitle || (typeof window.t === "function" ? window.t("section.keyImpact") : "Key impact")));
-      content.push({ ul: d.keyImpact.map(bullet), style: "design_list" });
-    }
-
-    if (Array.isArray(d.coreCompetencies) && d.coreCompetencies.length) {
-      content.push(
-        section(
-          d.coreCompetenciesTitle ||
-            (typeof window.t === "function" ? window.t("section.coreCompetencies") : "Core competencies")
-        )
-      );
-      content.push({
-        text: d.coreCompetencies.map(bullet).join("  ·  "),
-        style: "design_body",
-      });
-    }
-
-    const expTitle =
-      d.experienceTitle || (typeof window.t === "function" ? window.t("section.experience") : "Professional experience");
-    if (Array.isArray(d.experience) && d.experience.length) {
-      content.push(section(expTitle));
-      d.experience.forEach((job, idx) => {
-        if (idx > 0) {
-          content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#d1d5db" }], margin: [0, 10, 0, 10] });
-        }
-        const title = [job.company, job.title].filter(Boolean).join(" - ");
-        if (title) {
-          content.push({ text: title, style: "design_jobTitle", margin: [0, 0, 0, 1] });
-        }
-        if (job.meta) {
-          content.push({ text: job.meta, style: "design_meta", margin: [0, 0, 0, 3] });
-        }
-        if (job.summary) {
-          content.push({ text: job.summary, style: "design_body", margin: [0, 0, 0, 3] });
-        }
-        if (Array.isArray(job.bullets) && job.bullets.length) {
-          content.push({ ul: job.bullets.map(bullet), style: "design_list", margin: [0, 0, 0, 6] });
-        }
-      });
-    }
-
-    if (Array.isArray(d.education) && d.education.length) {
-      content.push(
-        section(d.educationTitle || (typeof window.t === "function" ? window.t("section.education") : "Education"))
-      );
-      content.push({ ul: d.education, style: "design_list" });
-    }
-
-    if (Array.isArray(d.projects) && d.projects.length) {
-      content.push(
-        section(d.projectsTitle || (typeof window.t === "function" ? window.t("section.projects") : "Selected projects"))
-      );
-      content.push({ ul: d.projects, style: "design_list" });
-    }
-
-    if (Array.isArray(d.languages) && d.languages.length) {
-      content.push(
-        section(d.languagesTitle || (typeof window.t === "function" ? window.t("section.languages") : "Languages"))
-      );
-      content.push({ ul: d.languages.map(bullet), style: "design_list" });
-    }
-
-    const docDef = {
-      pageSize: "A4",
-      pageMargins: [40, 40, 40, 40],
-      defaultStyle: { fontSize: 10, color: "#111827" },
-      styles: {
-        design_name: { fontSize: 20, bold: true, color: "#111827" },
-        design_headline: { fontSize: 11, color: "#4b5563" },
-        design_contacts: { fontSize: 10, color: "#4b5563" },
-        design_sectionHeader: {
-          fontSize: 11,
-          bold: true,
-          color: "#2563eb",
-          margin: [0, 18, 0, 6],
-        },
-        design_jobTitle: { fontSize: 11, bold: true },
-        design_meta: { fontSize: 9, color: "#6b7280" },
-        design_body: { fontSize: 10, color: "#111827" },
-        design_list: { fontSize: 10, margin: [0, 2, 0, 0] },
-      },
-      content,
-    };
-
     try {
       const pdf = pdfMake.createPdf(docDef);
       pdf.getBlob((blob) => {
@@ -1855,83 +1877,6 @@
     printWindow.document.close();
   }
 
-  function runPdfExportAsImage(el, filename) {
-    function setPdfExportUi(exporting) {
-      el.classList.toggle("pdf-export", exporting);
-      elPrint.disabled = exporting;
-      elPrint.textContent = window.t(exporting ? "button.exportPdfBusy" : "button.exportPdf");
-      if (!exporting) {
-        renderDoc(buildInternalFromForm());
-        if (elPrint) elPrint.focus();
-      }
-    }
-    const done = () => setPdfExportUi(false);
-    setPdfExportUi(true);
-    el.scrollIntoView({ block: "start", behavior: "auto" });
-    if (el.parentElement) el.parentElement.scrollTop = 0;
-
-    const usePerPage =
-      typeof html2canvas !== "undefined" &&
-      (typeof jspdf !== "undefined" || typeof jsPDF !== "undefined");
-
-    if (usePerPage) {
-      requestAnimationFrame(() => {
-        balancePages();
-        ensureNoPageOverflows();
-        requestAnimationFrame(() => {
-          const remainingPages = removeEmptyPages(el);
-          const JsPDF = (typeof jspdf !== "undefined" && jspdf.jsPDF) || (typeof jsPDF !== "undefined" && jsPDF) || null;
-          if (!JsPDF || remainingPages.length === 0) {
-            done();
-            if (remainingPages.length === 0) return;
-          }
-          const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-          const canvasOpt = { scale: PDF_CANVAS_SCALE, useCORS: true, scrollX: 0, scrollY: 0, logging: false };
-          const addPageToPdf = (pageIndex) => {
-            if (pageIndex >= remainingPages.length) {
-              const blob = pdf.output("blob");
-              savePdfBlob(blob, filename).then(done).catch((err) => { console.error(err); done(); });
-              return;
-            }
-            const pageEl = remainingPages[pageIndex];
-            pageEl.scrollIntoView({ block: "start", behavior: "auto" });
-            setTimeout(() => {
-              html2canvas(pageEl, canvasOpt)
-                .then((canvas) => {
-                  const dataUrl = canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY);
-                  if (pageIndex > 0) pdf.addPage();
-                  pdf.addImage(dataUrl, "JPEG", 0, 0, 210, 297);
-                  addPageToPdf(pageIndex + 1);
-                })
-                .catch((err) => { console.error(err); done(); window.print(); });
-            }, PDF_PAGE_DELAY_MS);
-          };
-          addPageToPdf(0);
-        });
-      });
-    } else if (typeof html2pdf !== "undefined") {
-      const opt = {
-        margin: 0,
-        filename: sanitizePdfFilename(filename),
-        image: { type: "jpeg", quality: PDF_JPEG_QUALITY },
-        html2canvas: { scale: PDF_CANVAS_SCALE, useCORS: true, scrollX: 0, scrollY: 0 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
-      requestAnimationFrame(() => {
-        balancePages();
-        ensureNoPageOverflows();
-        requestAnimationFrame(() => {
-          const remainingPages = removeEmptyPages(el);
-          opt.pagebreak = remainingPages.length > 1 ? { mode: "css", before: ".page-break-preview + .page" } : {};
-          html2pdf().set(opt).from(el).save().then(done).catch((err) => { console.error(err); done(); window.print(); });
-        });
-      });
-    } else {
-      window.print();
-      done();
-    }
-  }
-
   elPrint.addEventListener("click", () => {
     openExportPdfModal();
   });
@@ -1951,13 +1896,6 @@
       const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
       closeExportPdfModal(false);
       runPdfExport(name || "CV.pdf", { asAts: true });
-    });
-  }
-  if (elExportPdfSaveServer) {
-    elExportPdfSaveServer.addEventListener("click", () => {
-      const name = elExportPdfFilename ? elExportPdfFilename.value.trim() : "";
-      closeExportPdfModal(false);
-      runPdfExport(name || "CV.pdf", { useServer: true });
     });
   }
   if (elExportPdfModal && elExportPdfModal.querySelector(".modal__backdrop")) {
@@ -2003,7 +1941,11 @@
     clearDirty();
   });
 
-  elUploadJson.addEventListener("click", () => elJsonFileInput.click());
+  function openJsonFilePicker() {
+    elJsonFileInput.click();
+  }
+
+  if (elImportJsonFile) elImportJsonFile.addEventListener("click", openJsonFilePicker);
 
   elJsonFileInput.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
@@ -2072,6 +2014,9 @@
     fProfile.value = "";
     fImpact.value = "";
     fChips.value = "";
+    if (coreCompetenciesDisplay) coreCompetenciesDisplay.value = "chips";
+    fTools.value = "";
+    if (toolsDisplay) toolsDisplay.value = "dots";
     if (fLanguages) fLanguages.value = "";
     setSectionTitleDefaults();
     fEdu.value = "";
@@ -2147,6 +2092,15 @@
   });
 
   if (fName) fName.addEventListener("input", updateNameHint);
+  [coreCompetenciesDisplay, toolsDisplay].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("change", () => {
+      syncFromEditor();
+      setDirty();
+      debouncedSaveDraft();
+      renderDoc(buildInternalFromForm());
+    });
+  });
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
