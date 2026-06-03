@@ -740,10 +740,19 @@
 
     if (moved === 0) return false;
     if (isExperienceBlock && list.children.length === 0) {
-      while (continuationList.firstElementChild) {
-        list.appendChild(continuationList.firstElementChild);
+      if (block.classList.contains("expBlock--continued")) {
+        while (continuationList.firstElementChild) {
+          list.appendChild(continuationList.firstElementChild);
+        }
+        return false;
       }
-      return false;
+      if (isElementOverflowingPage(pageEl, block)) {
+        while (continuationList.firstElementChild) {
+          list.appendChild(continuationList.firstElementChild);
+        }
+        return false;
+      }
+      list.remove();
     }
     if (!list.children.length) {
       list.remove();
@@ -795,10 +804,13 @@
       return false;
     }
     if (isExperienceBlock && list.children.length === 0) {
-      while (continuationList.firstElementChild) {
-        list.appendChild(continuationList.firstElementChild);
+      if (blockEl.classList.contains("expBlock--continued")) {
+        while (continuationList.firstElementChild) {
+          list.appendChild(continuationList.firstElementChild);
+        }
+        return false;
       }
-      return false;
+      list.remove();
     }
 
     if (!list.children.length) {
@@ -848,6 +860,15 @@
     });
   }
 
+  function removeEmptyExperienceContinuations(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll(".expBlock--continued").forEach((block) => {
+      const list = block.querySelector(".list");
+      if (list && list.children.length > 0) return;
+      block.remove();
+    });
+  }
+
   function balancePages() {
     elRoot.classList.remove("doc--two-pages", "doc--multi-pages");
     const pages = elRoot.querySelectorAll(".page");
@@ -885,6 +906,7 @@
     ensureNoPageOverflows();
     rebalanceAllPagePairs();
     ensureNoPageOverflows();
+    removeEmptyExperienceContinuations(elRoot);
     const pageCount = elRoot.querySelectorAll(".page").length;
     elRoot.classList.toggle("doc--two-pages", pageCount === 2);
     elRoot.classList.toggle("doc--multi-pages", pageCount >= 3);
@@ -933,6 +955,7 @@
       if (!changed) break;
     }
     mergeSamePageExpContinuations(elRoot);
+    removeEmptyExperienceContinuations(elRoot);
     markAllSectionContinuations(elRoot);
   }
 
@@ -1002,6 +1025,7 @@
       last.after(breakEl, newPage);
     }
     mergeSamePageExpContinuations(elRoot);
+    removeEmptyExperienceContinuations(elRoot);
   }
 
   function createPageAfter(pageEl, pageNum) {
@@ -1052,6 +1076,7 @@
       }
       removeEmptyPages(rootEl);
       mergeSamePageExpContinuations(rootEl);
+      removeEmptyExperienceContinuations(rootEl);
       markAllSectionContinuations(rootEl);
       if (!changed) break;
     }
