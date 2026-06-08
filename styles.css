@@ -233,9 +233,11 @@ body{
 .field--exp-heading .field__label-row strong{
   font-size: inherit;
 }
-.section-display-select{
+.field__label-row > .section-display-select,
+.field select.section-display-select{
   flex: 0 0 auto;
   width: auto !important;
+  max-width: 96px;
   min-width: 76px;
   height: 26px;
   padding: 2px 22px 2px 8px !important;

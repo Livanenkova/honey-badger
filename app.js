@@ -740,10 +740,19 @@
 
     if (moved === 0) return false;
     if (isExperienceBlock && list.children.length === 0) {
-      while (continuationList.firstElementChild) {
-        list.appendChild(continuationList.firstElementChild);
+      if (block.classList.contains("expBlock--continued")) {
+        while (continuationList.firstElementChild) {
+          list.appendChild(continuationList.firstElementChild);
+        }
+        return false;
       }
-      return false;
+      if (isElementOverflowingPage(pageEl, block)) {
+        while (continuationList.firstElementChild) {
+          list.appendChild(continuationList.firstElementChild);
+        }
+        return false;
+      }
+      list.remove();
     }
     if (!list.children.length) {
       list.remove();
@@ -795,10 +804,13 @@
       return false;
     }
     if (isExperienceBlock && list.children.length === 0) {
-      while (continuationList.firstElementChild) {
-        list.appendChild(continuationList.firstElementChild);
+      if (blockEl.classList.contains("expBlock--continued")) {
+        while (continuationList.firstElementChild) {
+          list.appendChild(continuationList.firstElementChild);
+        }
+        return false;
       }
-      return false;
+      list.remove();
     }
 
     if (!list.children.length) {
@@ -848,6 +860,32 @@
     });
   }
 
+  function removeEmptyExperienceContinuations(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll(".expBlock--continued").forEach((block) => {
+      const list = block.querySelector(".list");
+      if (list && list.children.length > 0) return;
+      block.remove();
+    });
+  }
+
+  function moveOrphanExperienceHeading(root) {
+    if (!root || !root.querySelectorAll) return;
+    const expSection = root.querySelector(".section--experience");
+    if (!expSection) return;
+    const container = expSection.querySelector(".experience-container");
+    if (container && container.children.length > 0) return;
+
+    const firstExpBlock = root.querySelector(".page .expBlock");
+    if (!firstExpBlock) {
+      expSection.remove();
+      return;
+    }
+    if (expSection.parentElement === firstExpBlock.parentElement && expSection.nextElementSibling === firstExpBlock) return;
+
+    firstExpBlock.parentElement.insertBefore(expSection, firstExpBlock);
+  }
+
   function balancePages() {
     elRoot.classList.remove("doc--two-pages", "doc--multi-pages");
     const pages = elRoot.querySelectorAll(".page");
@@ -885,6 +923,8 @@
     ensureNoPageOverflows();
     rebalanceAllPagePairs();
     ensureNoPageOverflows();
+    removeEmptyExperienceContinuations(elRoot);
+    moveOrphanExperienceHeading(elRoot);
     const pageCount = elRoot.querySelectorAll(".page").length;
     elRoot.classList.toggle("doc--two-pages", pageCount === 2);
     elRoot.classList.toggle("doc--multi-pages", pageCount >= 3);
@@ -933,6 +973,8 @@
       if (!changed) break;
     }
     mergeSamePageExpContinuations(elRoot);
+    removeEmptyExperienceContinuations(elRoot);
+    moveOrphanExperienceHeading(elRoot);
     markAllSectionContinuations(elRoot);
   }
 
@@ -1002,6 +1044,8 @@
       last.after(breakEl, newPage);
     }
     mergeSamePageExpContinuations(elRoot);
+    removeEmptyExperienceContinuations(elRoot);
+    moveOrphanExperienceHeading(elRoot);
   }
 
   function createPageAfter(pageEl, pageNum) {
@@ -1052,6 +1096,8 @@
       }
       removeEmptyPages(rootEl);
       mergeSamePageExpContinuations(rootEl);
+      removeEmptyExperienceContinuations(rootEl);
+      moveOrphanExperienceHeading(rootEl);
       markAllSectionContinuations(rootEl);
       if (!changed) break;
     }
@@ -2329,7 +2375,7 @@
   if (elSplitBlocksToggle) {
     try {
       const stored = localStorage.getItem(SPLIT_BLOCKS_STORAGE_KEY);
-      elSplitBlocksToggle.checked = stored === "1";
+      elSplitBlocksToggle.checked = stored === null ? true : stored === "1";
     } catch (e) { /* ignore */ }
     elRoot.classList.toggle("doc--allow-block-split", elSplitBlocksToggle.checked);
     elSplitBlocksToggle.addEventListener("change", () => {
